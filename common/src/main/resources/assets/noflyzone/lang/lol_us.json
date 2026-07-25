@@ -1,0 +1,12 @@
+{
+  "effect.noflyzone.no_fly": "U R NOT BURD",
+  "noflyzone.message.takeoff_denied": "NO BURDS HERE. IS FORBIDDEN.",
+  "noflyzone.message.glide_cut": "U IZ IN NO FLY ZONE NAO",
+  "noflyzone.message.riptide_denied": "NO SPINNY FORK HERE",
+  "noflyzone.message.boost_denied": "NO SPARKLY BOOM HERE",
+  "noflyzone.message.momentum_cut": "U SHALL NOT PASS",
+  "noflyzone.message.shot_down": "I IZ OBLIGATED 2 HUNT U",
+  "noflyzone.mode.zero-momentum": "u stop but u getz down ok",
+  "noflyzone.mode.no-glide": "wingz go bye bye rite away. no mercy. sad.",
+  "noflyzone.mode.damage": "u keepz flyin but it hurtz"
+}

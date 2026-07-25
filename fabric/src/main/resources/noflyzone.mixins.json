@@ -1,0 +1,22 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "cx.gid.minecraft.noflyzone.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "BeaconBlockEntityMixin",
+    "BeaconLevelsAccessor",
+    "BeaconMenuAccessor",
+    "FireworkRocketItemMixin",
+    "LivingEntityCanGlideMixin",
+    "LivingEntityGlideTickMixin",
+    "TridentItemMixin"
+  ],
+  "client": [
+    "client.BeaconConfirmMixin",
+    "client.BeaconEffectListMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

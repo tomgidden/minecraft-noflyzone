@@ -1,0 +1,12 @@
+{
+  "effect.noflyzone.no_fly": "(Not) A Great Way To Fly",
+  "noflyzone.message.takeoff_denied": "Stone the crows! No gliding in these parts, mate!",
+  "noflyzone.message.glide_cut": "Oh naur! Elytra carked it straight away!",
+  "noflyzone.message.riptide_denied": "Nah mate, riptide's off-limits round here",
+  "noflyzone.message.boost_denied": "Rocket boost's buggered round here",
+  "noflyzone.message.momentum_cut": "You're comin' down whether you like it or not",
+  "noflyzone.message.shot_down": "Crikey! You've flown into a no-fly zone! Kiss your arse goodbye!",
+  "noflyzone.mode.zero-momentum": "Brought up short; soft landing though",
+  "noflyzone.mode.no-glide": "Elytra get switched off pronto; no warnings",
+  "noflyzone.mode.damage": "Flying works, but hurts like a bitch"
+}

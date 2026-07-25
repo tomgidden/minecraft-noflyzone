@@ -1,0 +1,12 @@
+{
+  "effect.noflyzone.no_fly": "No-Fly",
+  "noflyzone.message.takeoff_denied": "Elytra are disabled in this area",
+  "noflyzone.message.riptide_denied": "Riptide is disabled in this area",
+  "noflyzone.message.boost_denied": "Firework boosting is disabled in this area",
+  "noflyzone.message.glide_cut": "You have entered a no-fly zone",
+  "noflyzone.message.momentum_cut": "You have entered a no-fly zone",
+  "noflyzone.message.shot_down": "You have entered a no-fly zone",
+  "noflyzone.mode.zero-momentum": "Flight is stopped, but you can glide down safely",
+  "noflyzone.mode.no-glide": "Elytra are immediately disabled",
+  "noflyzone.mode.damage": "Take damage flying in the no-fly zone"
+}

@@ -1,0 +1,12 @@
+{
+  "effect.noflyzone.no_fly": "No Upstart Crows",
+  "noflyzone.message.takeoff_denied": "Here, rough magic clips thy wings of flight!",
+  "noflyzone.message.glide_cut": "A spell most foul doth bind thy wings to earth!",
+  "noflyzone.message.riptide_denied": "By Prospero's art, the very air doth deny thee passage!",
+  "noflyzone.message.boost_denied": "Thy spark doth fail! No fire within thee now!",
+  "noflyzone.message.momentum_cut": "Thou shalt not reach thy yonder window, bound as thou art!",
+  "noflyzone.message.shot_down": "Thus do the slings and arrows strike thee down!",
+  "noflyzone.mode.zero-momentum": "Suspended 'tween earth and sky; a gentle fall awaits",
+  "noflyzone.mode.no-glide": "The tempest rages — down must thou descend",
+  "noflyzone.mode.damage": "Thy hubris wounds thee — pride before the fall"
+}

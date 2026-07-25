@@ -1,0 +1,46 @@
+plugins {
+    id 'net.neoforged.moddev' version "${neoforge_moddev_version}"
+}
+
+base {
+    archivesName = "${project.archives_base_name}-neoforge"
+}
+
+neoForge {
+    version = project.neoforge_version
+    mods {
+        noflyzone {
+            sourceSet sourceSets.main
+            // Required for the common classes to be recognised as part of this
+            // mod at dev runtime -- without it the mixins in common/ are not
+            // owned by any mod and NeoForge refuses to apply them.
+            sourceSet project(':common').sourceSets.main
+        }
+    }
+}
+
+configurations.all {
+    exclude group: 'net.fabricmc', module: 'fabric-loader'
+}
+
+dependencies {
+    implementation project(':common')
+}
+
+processResources {
+    def props = [
+        version: project.version,
+        mod_id: project.mod_id,
+        mod_name: project.mod_name,
+        minecraft_version_min: project.minecraft_version_min,
+        neoforge_version_min: project.neoforge_version_min
+    ]
+    inputs.properties props
+    filesMatching("META-INF/neoforge.mods.toml") { expand props }
+}
+
+jar {
+    from(project(':common').sourceSets.main.output)
+    def baseName = base.archivesName.get()
+    from("../LICENSE.txt") { rename { "${it}_${baseName}" } }
+}

@@ -1,0 +1,237 @@
+package cx.gid.minecraft.noflyzone;
+
+import net.minecraft.ChatFormatting;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.Vec3;
+
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * The one place that answers "should flight be refused for this entity, here?",
+ * plus the player-facing messaging that goes with a refusal.
+ *
+ * Keeping the bypass rule and the message cooldown here rather than in the
+ * mixins means all three enforcement points (glide, riptide, firework boost)
+ * behave consistently, and the mixins stay thin.
+ */
+public final class NoFlyPolicy {
+
+    /**
+     * Damage per hit in {@link NoFlyMode#DAMAGE} mode, matching vanilla's void
+     * damage. See {@link #applyDamage} for why the cadence differs.
+     */
+    private static final float DAMAGE_PER_HIT = 4.0f;
+
+    /**
+     * Horizontal speed cap in {@link NoFlyMode#ZERO_MOMENTUM} mode, in blocks per
+     * tick -- vanilla's baseline walking speed, about 4.3 blocks/second.
+     *
+     * <p>Fixed rather than read from the player's {@code MOVEMENT_SPEED}
+     * attribute: the cap is a property of the zone, not of the player, so speed
+     * potions and enchantments do not raise it.
+     */
+    private static final double WALKING_SPEED = 0.1;
+
+    /** Elytra durability lost per damage tick. */
+    private static final int ELYTRA_DAMAGE_PER_HIT = 1;
+
+    /** Last tick each player was shown a refusal message, for cooldown purposes. */
+    private static final Map<UUID, Long> LAST_MESSAGE = new ConcurrentHashMap<>();
+
+    /** Last tick each player was damaged, for the damage-mode interval. */
+    private static final Map<UUID, Long> LAST_DAMAGE = new ConcurrentHashMap<>();
+
+    private NoFlyPolicy() {}
+
+    /**
+     * True if flight should be refused for this entity at its current position.
+     *
+     * Only players are subject to no-fly zones: a mob wearing an elytra is a
+     * curiosity rather than the problem this mod exists to solve, and sparing
+     * them keeps the per-tick cost off every entity in the world.
+     *
+     * <p>There are deliberately no exemptions. A no-fly zone applies to
+     * everyone -- operators included -- because a rule with holes in it is a
+     * weaker guarantee than the one this mod is meant to provide. Spectators are
+     * the sole exception, and only because spectator movement is not elytra
+     * flight at all: it never sets the gliding flag, so it never reaches here.
+     */
+    public static boolean shouldRefuse(Entity entity) {
+        if (!(entity instanceof ServerPlayer player)) {
+            return false;
+        }
+        if (player.level().isClientSide()) {
+            return false;
+        }
+        return NoFlyZones.isInZone(player);
+    }
+
+    /** The configured enforcement mode. */
+    public static NoFlyMode mode() {
+        return NoFlyConfig.get().mode;
+    }
+
+    /**
+     * Per-tick effects for a player still gliding inside a zone.
+     *
+     * <p>Reached only from {@link cx.gid.minecraft.noflyzone.mixin.LivingEntityGlideTickMixin},
+     * and only for the two modes that let a glide continue. {@code no-glide}
+     * never gets here, because the glide has already been cut.
+     */
+    public static void applyInFlightEffects(ServerPlayer player) {
+        switch (mode()) {
+            case ZERO_MOMENTUM -> clampMomentum(player);
+            case DAMAGE -> applyDamage(player);
+            case NO_GLIDE -> { /* handled in canGlide; nothing to do per-tick */ }
+        }
+    }
+
+    /**
+     * Caps horizontal movement at walking pace while leaving vertical alone, so
+     * the player drifts down and lands safely.
+     *
+     * <p>Capped rather than stopped dead: an abrupt halt in mid-air reads as a
+     * bug or as lag, whereas being slowed to a walk reads as resistance. The
+     * player keeps steering and keeps moving, just no faster than they could on
+     * foot -- which is the point, since elytra are a travel shortcut and this
+     * mode's job is to take the shortcut away rather than to take away flight.
+     *
+     * <p>The cap is a fixed constant rather than the player's own
+     * {@code MOVEMENT_SPEED} attribute, deliberately: the zone imposes the same
+     * limit on everyone, so a speed potion cannot buy a faster crossing.
+     *
+     * <p>Vertical velocity is untouched: zeroing it would leave the player
+     * hovering, and forcing it downward would be a fall by another name. Letting
+     * elytra descent proceed normally is what makes this the merciful mode.
+     *
+     * <p>Runs after vanilla's fall-flying movement for the tick, so this is the
+     * final word on velocity rather than something vanilla overwrites.
+     */
+    private static void clampMomentum(ServerPlayer player) {
+        Vec3 movement = player.getDeltaMovement();
+
+        double horizontalSq = movement.x * movement.x + movement.z * movement.z;
+        if (horizontalSq <= WALKING_SPEED * WALKING_SPEED) {
+            // Already at or below walking pace. Skip the setter so we don't mark
+            // the entity dirty and resend velocity 20 times a second to someone
+            // drifting gently downward.
+            return;
+        }
+
+        double scale = WALKING_SPEED / Math.sqrt(horizontalSq);
+        player.setDeltaMovement(movement.x * scale, movement.y, movement.z * scale);
+        player.hurtMarked = true; // forces the velocity update to reach the client
+
+        notifyRefused(player, NoFlyMessages.MOMENTUM_CUT);
+    }
+
+    /**
+     * Damages a player who keeps flying inside a zone, as though being shot down.
+     *
+     * <p>The magnitude matches vanilla's void damage
+     * ({@code LivingEntity.onBelowWorld} uses 4.0), but the cadence deliberately
+     * does not. Void damage re-fires every tick and kills an unarmoured player in
+     * about a quarter of a second, which would make a crossing unsurvivable
+     * rather than merely frightening.
+     *
+     * <p>Rate is controlled by an explicit interval rather than by vanilla's
+     * 10-tick invulnerability window. Relying on that window alone gave roughly
+     * 8 HP/s, which played as too brutal; {@code damage_interval_ticks} makes the
+     * spacing a tuning knob, and a hit spaced further apart still reads as being
+     * shot at rather than as a steady drain.
+     *
+     * <p>{@code flyIntoWall} is used rather than {@code fellOutOfWorld} purely
+     * for the death message: "experienced kinetic energy" reads plausibly for
+     * being shot out of the sky, whereas "fell out of the world" is nonsense
+     * 300 blocks up.
+     */
+    private static void applyDamage(ServerPlayer player) {
+        if (!(player.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+
+        // The interval is the real governor; vanilla's invulnerability window
+        // still applies underneath and simply never binds at these spacings.
+        long now = player.level().getGameTime();
+        Long last = LAST_DAMAGE.get(player.getUUID());
+        if (last != null && now - last < NoFlyConfig.get().damageIntervalTicks) {
+            return;
+        }
+        LAST_DAMAGE.put(player.getUUID(), now);
+
+        boolean hurt = player.hurtServer(serverLevel,
+            player.damageSources().flyIntoWall(), DAMAGE_PER_HIT);
+
+        // Only wear the elytra on ticks the player actually took damage, so the
+        // two stay in step even if something else made the player invulnerable.
+        if (hurt) {
+            damageElytra(player);
+            notifyRefused(player, NoFlyMessages.SHOT_DOWN);
+        }
+    }
+
+    /**
+     * Puts a little wear on the elytra each time the player is hit.
+     *
+     * <p>Small on purpose: a full six-second crossing costs around a dozen of an
+     * elytra's 432 durability, so the wings are a real cost but not the reason
+     * the crossing hurts. Breaking mid-zone would also convert the damage mode
+     * into the no-glide mode by accident, which would defeat the point.
+     */
+    private static void damageElytra(ServerPlayer player) {
+        ItemStack chest = player.getItemBySlot(EquipmentSlot.CHEST);
+        if (!chest.isEmpty() && chest.has(DataComponents.GLIDER)) {
+            chest.hurtAndBreak(ELYTRA_DAMAGE_PER_HIT, player, EquipmentSlot.CHEST);
+        }
+    }
+
+    /**
+     * Shows the "flight is disabled here" action-bar message, subject to the
+     * configured cooldown.
+     *
+     * Enforcement fires every tick while a player is held in a zone, so without
+     * the cooldown the message would be rewritten 20 times a second -- visually
+     * identical, but it would suppress any other action-bar text the server
+     * wants to show.
+     */
+    public static void notifyRefused(ServerPlayer player, String translationKey) {
+        NoFlyConfig config = NoFlyConfig.get();
+        if (!config.actionBarMessages) {
+            return;
+        }
+
+        long now = player.level().getGameTime();
+        Long last = LAST_MESSAGE.get(player.getUUID());
+        if (last != null && now - last < config.messageCooldownTicks) {
+            return;
+        }
+        LAST_MESSAGE.put(player.getUUID(), now);
+
+        // Logged here rather than at each call site so every refusal is recorded
+        // on the same cooldown as the message -- enforcement runs every tick, and
+        // an ungated log line would flood the console.
+        NoFlyDebug.log("refused {} for {} at {}",
+            translationKey, player.getGameProfile().name(), player.blockPosition());
+
+        player.sendOverlayMessage(NoFlyMessages.of(player, translationKey).withStyle(ChatFormatting.RED));
+    }
+
+    /** Drops a player's message cooldown state when they disconnect. */
+    public static void forget(ServerPlayer player) {
+        LAST_MESSAGE.remove(player.getUUID());
+        LAST_DAMAGE.remove(player.getUUID());
+    }
+
+    /** Drops all message cooldown state. */
+    public static void forgetAll() {
+        LAST_MESSAGE.clear();
+        LAST_DAMAGE.clear();
+    }
+}

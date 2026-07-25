@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "${mod_id}",
+  "version": "${version}",
+  "name": "${mod_name}",
+  "description": "Give a beacon the No-Fly effect and elytra stop working inside its range. Enforcement is entirely server-side, but mod can be installed on client for UI improvement to set up the beacon in-game.",
+  "authors": [
+    "_gid"
+  ],
+  "contact": {
+    "homepage": "https://github.com/tomgidden/minecraft-noflyzone",
+    "sources": "https://github.com/tomgidden/minecraft-noflyzone"
+  },
+  "license": "MIT",
+  "icon": "assets/noflyzone/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "cx.gid.minecraft.noflyzone.fabric.NoFlyZoneFabric"
+    ],
+    "client": [
+      "cx.gid.minecraft.noflyzone.fabric.NoFlyZoneFabricClient"
+    ]
+  },
+  "mixins": [
+    "noflyzone.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${fabric_loader_version}",
+    "fabric-api": "*",
+    "minecraft": ">=${minecraft_version_min} <27",
+    "java": ">=25"
+  }
+}
