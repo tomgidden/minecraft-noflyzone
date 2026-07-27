@@ -23,13 +23,7 @@ public final class ClientPayloadSender {
         sender = value;
     }
 
-    /**
-     * Sends a payload, or does nothing if no sender is installed.
-     *
-     * Failing quietly is deliberate: the only caller is a UI action, and an
-     * exception escaping into the screen's button handler would be worse than a
-     * selection that silently doesn't take.
-     */
+    /** Sends a payload, or does nothing if no sender is installed. */
     public static void send(CustomPacketPayload payload) {
         Consumer<CustomPacketPayload> local = sender;
         if (local == null) {

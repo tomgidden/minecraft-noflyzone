@@ -3,7 +3,7 @@
   "id": "${mod_id}",
   "version": "${version}",
   "name": "${mod_name}",
-  "description": "Give a beacon the No-Fly effect and elytra stop working inside its range. Enforcement is entirely server-side, but mod can be installed on client for UI improvement to set up the beacon in-game.",
+  "description": "Give a beacon the No-Fly effect and elytra and happy ghasts stop working inside its range. Enforcement is entirely server-side, but mod can be installed on client for UI improvement to set up the beacon in-game.",
   "authors": [
     "_gid"
   ],

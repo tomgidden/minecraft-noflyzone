@@ -11,14 +11,12 @@ import java.util.function.BiConsumer;
  * Tells modded clients when they enter or leave a no-fly zone, so they can show
  * the HUD icon.
  *
- * <h2>Cosmetic only</h2>
  * Enforcement never consults any of this. A client that lacks the mod, ignores
  * the payload, or never receives it is grounded exactly the same -- the zone test
  * is done server-side against the player's position on every glide check. This
  * exists solely because the server has no {@code MobEffect} to apply (see
  * {@link NoFlyBeacon}), so the icon has to be driven explicitly.
  *
- * <h2>Edge-triggered</h2>
  * Only transitions are sent, not per-tick state. A player standing in a zone
  * generates one packet on entry and one on exit, which is what makes it
  * reasonable to run this from the server tick.

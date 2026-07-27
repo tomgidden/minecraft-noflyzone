@@ -1,3 +1,17 @@
+# This workflow is intentionally identical across all of tomgidden's Minecraft
+# mods. Everything that differs between mods lives in .github/release/:
+#
+#   release.env   -- mod name, jar basename, release channel, project ids
+#   RELEASE.md    -- body of the GitHub release
+#   CHANGELOG.md  -- changelog sent to Modrinth and CurseForge
+#
+# ...or is discovered from the repo layout itself: which loaders get built is
+# decided by which of the fabric/ and neoforge/ subprojects are present, so a
+# Fabric-only mod and a Fabric+NeoForge mod share this file unchanged.
+#
+# To change what a release says, edit those files -- not this one. Any edit
+# here should be copied to the other repos so they stay in sync.
+
 name: Build and Release
 
 on:
@@ -5,16 +19,6 @@ on:
   push:
     tags:
       - '[0-9]*'
-
-# This workflow is intentionally identical across all of the minecraft-mods
-# repos. Everything that differs between mods lives in .github/release/:
-#
-#   release.env   -- mod name, jar basename, release channel, project ids
-#   RELEASE.md    -- body of the GitHub release
-#   CHANGELOG.md  -- changelog sent to Modrinth and CurseForge
-#
-# To change what a release says, edit those files -- not this one. Any edit
-# here should be copied to the other repos so they stay in sync.
 
 jobs:
   build:
@@ -42,7 +46,8 @@ jobs:
       # Loom's own cache are expensive to rebuild but only change when the
       # pinned MC/loader/NeoForge versions do -- not on every source change --
       # so they're cached separately from setup-gradle's build-cache, keyed on
-      # gradle.properties rather than the whole repo.
+      # gradle.properties rather than the whole repo. The neoformruntime path
+      # is simply unused in repos with no neoforge/ subproject.
       - name: Cache NeoForge/Loom toolchains
         uses: actions/cache@v4
         with:
@@ -58,6 +63,10 @@ jobs:
       # step environment. VERSION comes from the tag; on a workflow_dispatch
       # (no tag) it falls back to mod_version out of gradle.properties, so a
       # manual run still builds and names its artifacts correctly.
+      #
+      # The set of loaders is derived from the repo layout: a loader is built
+      # only if its subproject directory exists. GRADLE_TARGETS is the list of
+      # build tasks; HAS_FABRIC/HAS_NEOFORGE gate the later per-loader steps.
       - name: Load release config
         id: cfg
         run: |
@@ -68,19 +77,40 @@ jobs:
             echo "VERSION=$(sed -n 's/^mod_version=//p' gradle.properties)" >> "$GITHUB_ENV"
           fi
 
+          targets=""
+          for loader in fabric neoforge; do
+            if [ -d "$loader" ]; then
+              targets="$targets :$loader:build"
+              echo "HAS_$(echo "$loader" | tr '[:lower:]' '[:upper:]')=true" >> "$GITHUB_ENV"
+            fi
+          done
+          if [ -z "$targets" ]; then
+            echo "::error::No fabric/ or neoforge/ subproject found -- nothing to build."
+            exit 1
+          fi
+          echo "GRADLE_TARGETS=${targets# }" >> "$GITHUB_ENV"
+
       - name: Build
-        run: ./gradlew :fabric:build :neoforge:build
+        run: ./gradlew $GRADLE_TARGETS
 
       # The release body and changelog are templates containing ${VERSION};
       # envsubst is restricted to that one variable so any other $... in the
       # prose (or a stray backtick-free shell-looking string) is left alone.
+      #
+      # RELEASE_FILES is the newline-separated list of jars to attach/publish,
+      # holding only the loaders that were actually built.
       - name: Render release text
         run: |
           envsubst '${VERSION}' < .github/release/RELEASE.md > "$RUNNER_TEMP/release-body.md"
           envsubst '${VERSION}' < .github/release/CHANGELOG.md > "$RUNNER_TEMP/changelog.md"
+
           {
-            echo "FABRIC_JAR=fabric/build/libs/${ARTIFACT}-fabric-${VERSION}.jar"
-            echo "NEOFORGE_JAR=neoforge/build/libs/${ARTIFACT}-neoforge-${VERSION}.jar"
+            echo "RELEASE_FILES<<EOF"
+            for loader in fabric neoforge; do
+              jar="$loader/build/libs/${ARTIFACT}-${loader}-${VERSION}.jar"
+              [ -f "$jar" ] && echo "$jar"
+            done
+            echo "EOF"
           } >> "$GITHUB_ENV"
 
       - name: Create release
@@ -88,9 +118,7 @@ jobs:
         with:
           name: ${{ env.MOD_NAME }} ${{ env.VERSION }}
           body_path: ${{ runner.temp }}/release-body.md
-          files: |
-            ${{ env.FABRIC_JAR }}
-            ${{ env.NEOFORGE_JAR }}
+          files: ${{ env.RELEASE_FILES }}
           fail_on_unmatched_files: true
           prerelease: ${{ env.PRERELEASE == 'true' }}
 
@@ -106,9 +134,7 @@ jobs:
         with:
           modrinth-id: ${{ vars.MODRINTH_ID }}
           modrinth-token: ${{ env.MODRINTH_TOKEN }}
-          files: |
-            ${{ env.FABRIC_JAR }}
-            ${{ env.NEOFORGE_JAR }}
+          files: ${{ env.RELEASE_FILES }}
           name: ${{ env.MOD_NAME }} ${{ env.VERSION }}
           version: ${{ env.VERSION }}
           version-type: ${{ env.VERSION_TYPE }}
@@ -127,9 +153,7 @@ jobs:
         with:
           curseforge-id: ${{ vars.CURSEFORGE_ID }}
           curseforge-token: ${{ env.CURSEFORGE_TOKEN }}
-          files: |
-            ${{ env.FABRIC_JAR }}
-            ${{ env.NEOFORGE_JAR }}
+          files: ${{ env.RELEASE_FILES }}
           name: ${{ env.MOD_NAME }} ${{ env.VERSION }}
           version: ${{ env.VERSION }}
           version-type: ${{ env.VERSION_TYPE }}

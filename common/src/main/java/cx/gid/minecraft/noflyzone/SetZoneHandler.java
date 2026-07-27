@@ -7,23 +7,21 @@ import net.minecraft.world.inventory.BeaconMenu;
 /**
  * Applies a client's request to make a beacon a no-fly beacon.
  *
- * <h2>This is the security boundary</h2>
  * Because No-Fly cannot be a real {@code MobEffect} (see {@link NoFlyBeacon}),
  * the selection does not travel through {@code ServerboundSetBeaconPacket} and
- * therefore gets <em>none</em> of vanilla's validation -- not the open-menu
- * check, not the tier check, not the payment. Everything vanilla would have done
+ * therefore gets none of vanilla's validation -- not the open-menu check, not 
+ * the tier check, not the payment. Everything vanilla would have done
  * has to be done here instead, against a payload a modified client can put
  * anything into.
  *
- * <p>The payload carries only a boolean; the beacon is resolved from the menu the
+ * The payload carries only a boolean; the beacon is resolved from the menu the
  * player has open, so a client cannot name a block it isn't standing at. The
  * rules enforced then mirror vanilla's own:
- * <ul>
- *   <li>the player must have a valid beacon menu open ({@code stillValid} covers
- *       reach and that the block is still a beacon),</li>
- *   <li>the beacon must be a full tier-4 pyramid,</li>
- *   <li>payment must be present, and is consumed exactly as vanilla consumes it.</li>
- * </ul>
+ * 
+ *   - the player must have a valid beacon menu open ({@code stillValid} covers
+ *     reach and that the block is still a beacon),
+ *   - the beacon must be a full tier-4 pyramid,
+ *   - payment must be present, and is consumed exactly as vanilla consumes it.
  */
 public final class SetZoneHandler {
 

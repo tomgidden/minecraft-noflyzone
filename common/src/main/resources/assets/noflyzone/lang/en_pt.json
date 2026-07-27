@@ -1,11 +1,12 @@
 {
   "effect.noflyzone.no_fly": "No Flappin'",
   "noflyzone.message.takeoff_denied": "The curse of the albatross weighs upon ye!",
-  "noflyzone.message.glide_cut": "Calypso's grip holds ye fast! No flappin' allowed, laddie!",
   "noflyzone.message.riptide_denied": "The tide'll not carry ye here",
   "noflyzone.message.boost_denied": "Yer black powder be damp, so no boost for ye!",
+  "noflyzone.message.glide_cut": "Calypso's grip holds ye fast! No flappin' allowed, laddie!",
   "noflyzone.message.momentum_cut": "Charybdis drags ye toward the depths! Try to reach dry land, laddie!",
   "noflyzone.message.shot_down": "They be firin' upon ye — away with ye!",
+  "noflyzone.message.ghast_denied": "Yer ghast won't budge; even spirits fear this zone",
   "noflyzone.mode.zero-momentum": "You be halted, but ye'll settle down gentle",
   "noflyzone.mode.no-glide": "Yer wings be clipped - down to Davy Jones with ye!",
   "noflyzone.mode.damage": "Ye keep yer wings, but ye'll take a broadside"

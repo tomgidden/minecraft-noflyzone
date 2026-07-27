@@ -13,14 +13,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * The set of currently-active no-fly beacons, and the "is this position in a
  * zone" question that enforcement asks.
  *
- * <h2>Why a registry rather than scanning</h2>
  * Enforcement runs from {@code LivingEntity.canGlide()}, which is consulted
  * every tick for every gliding entity. Scanning loaded block entities at that
  * rate would be absurd, so beacons instead publish themselves here from their
  * own tick (vanilla re-evaluates a beacon every 80 ticks) and enforcement does
  * a handful of AABB tests against the result.
  *
- * <h2>Staleness</h2>
  * A beacon that stops being a valid no-fly beacon -- broken, roofed over,
  * pyramid dismantled, effect changed -- simply stops re-publishing. Because
  * vanilla only reconsiders a beacon every 80 ticks, an entry is kept only until
@@ -67,9 +65,8 @@ public final class NoFlyZones {
         Map<BlockPos, Zone> perLevel = ZONES.computeIfAbsent(level.dimension(), k -> new ConcurrentHashMap<>());
         Zone previous = perLevel.put(pos.immutable(), new Zone(bounds, level.getGameTime()));
 
-        if (previous == null) {
+        if (previous == null)
             NoFlyDebug.log("zone activated at {} (tier {}, radius {})", pos, levels, radiusFor(levels));
-        }
     }
 
     /**
@@ -142,6 +139,36 @@ public final class NoFlyZones {
     }
 
     /**
+     * The bounds of an active zone containing the entity, or {@code null}.
+     *
+     * Where {@link #isInZone} only answers yes or no, this hands back the
+     * volume itself, because steering something out of a zone needs to know
+     * which way "out" is. See {@code NoFlyPolicy.steerOut}.
+     *
+     * If zones overlap, the first match wins. That is arbitrary but harmless:
+     * leaving one zone moves the entity toward the edge of the others too, and
+     * the next tick re-evaluates against whatever it is still inside.
+     *
+     * Deliberately does not run the expiry sweep. This is called
+     * only for ghasts already known to be in a zone, so the sweep has just run
+     * in {@link #isInZone}; repeating it here would be wasted work on a path
+     * that ticks per entity.
+     */
+    public static AABB zoneContaining(Entity entity) {
+        Map<BlockPos, Zone> perLevel = ZONES.get(entity.level().dimension());
+        if (perLevel == null || perLevel.isEmpty()) {
+            return null;
+        }
+
+        for (Zone zone : perLevel.values()) {
+            if (zone.bounds().contains(entity.getX(), entity.getY(), entity.getZ())) {
+                return zone.bounds();
+            }
+        }
+        return null;
+    }
+
+    /**
      * Drops the zone projected by the beacon at {@code pos}, if any.
      *
      * Zones normally age out on their own once a beacon stops refreshing them,
@@ -150,9 +177,9 @@ public final class NoFlyZones {
      */
     public static void remove(Level level, BlockPos pos) {
         Map<BlockPos, Zone> perLevel = ZONES.get(level.dimension());
-        if (perLevel != null && perLevel.remove(pos) != null) {
+
+        if (perLevel != null && perLevel.remove(pos) != null)
             NoFlyDebug.log("zone removed at {}", pos);
-        }
     }
 
     /**

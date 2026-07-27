@@ -8,8 +8,11 @@
     "BeaconLevelsAccessor",
     "BeaconMenuAccessor",
     "FireworkRocketItemMixin",
+    "HappyGhastMixin",
     "LivingEntityCanGlideMixin",
     "LivingEntityGlideTickMixin",
+    "MobAccessor",
+    "ServerGamePacketListenerMixin",
     "TridentItemMixin"
   ],
   "client": [

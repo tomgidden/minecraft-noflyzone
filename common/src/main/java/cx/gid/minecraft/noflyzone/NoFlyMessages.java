@@ -59,6 +59,7 @@ public final class NoFlyMessages {
     public static final String BOOST_DENIED = "noflyzone.message.boost_denied";
     public static final String MOMENTUM_CUT = "noflyzone.message.momentum_cut";
     public static final String SHOT_DOWN = "noflyzone.message.shot_down";
+    public static final String GHAST_REFUSED = "noflyzone.message.ghast_refused";
 
     /** The language every lookup ultimately falls back to. */
     private static final String DEFAULT_LANGUAGE = "en_us";

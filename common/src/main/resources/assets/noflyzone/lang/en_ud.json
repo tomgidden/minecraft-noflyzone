@@ -1,11 +1,12 @@
 {
   "effect.noflyzone.no_fly": "ʎꞁℲ-oN",
   "noflyzone.message.takeoff_denied": "ɐǝɹɐ sᴉɥʇ uᴉ pǝꞁqɐsᴉp ǝɹɐ ɐɹʇʎꞁƎ",
-  "noflyzone.message.glide_cut": "ǝuoz ʎꞁɟ-ou ɐ pǝɹǝʇuǝ ǝʌɐɥ no⅄",
   "noflyzone.message.riptide_denied": "ɐǝɹɐ sᴉɥʇ uᴉ pǝꞁqɐsᴉp sᴉ ǝpᴉʇdᴉᴚ",
   "noflyzone.message.boost_denied": "ɐǝɹɐ sᴉɥʇ uᴉ pǝꞁqɐsᴉp sᴉ ᵷuᴉʇsooq ʞɹoʍǝɹᴉℲ",
+  "noflyzone.message.glide_cut": "ǝuoz ʎꞁɟ-ou ɐ pǝɹǝʇuǝ ǝʌɐɥ no⅄",
   "noflyzone.message.momentum_cut": "ǝuoz ʎꞁɟ-ou ɐ pǝɹǝʇuǝ ǝʌɐɥ no⅄",
   "noflyzone.message.shot_down": "ǝuoz ʎꞁɟ-ou ɐ pǝɹǝʇuǝ ǝʌɐɥ no⅄",
+  "noflyzone.message.ghast_refused": "ǝuoz ʎꞁɟ-ou ǝɥʇ oʇuᴉ ʎꞁɟ ʇou ꞁꞁᴉʍ ʇsɐɥᵷ ɹno⅄",
   "noflyzone.mode.zero-momentum": "ʎꞁǝɟɐs puǝɔsǝp uɐɔ noʎ ʇnq 'pǝddoʇs sᴉ ʇɥᵷᴉꞁℲ",
   "noflyzone.mode.no-glide": "ʎɔɹǝɯ ou ⸵pǝꞁqɐsᴉp ʎꞁǝʇɐᴉpǝɯɯᴉ ǝɹɐ ɐɹʇʎꞁƎ",
   "noflyzone.mode.damage": "ǝuoz ʎꞁɟ-ou ǝɥʇ uᴉ ᵷuᴉʎꞁɟ ǝᵷɐɯɐp ǝʞɐ⟘",

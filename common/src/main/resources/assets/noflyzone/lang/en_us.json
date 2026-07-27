@@ -6,6 +6,7 @@
   "noflyzone.message.glide_cut": "You have entered a no-fly zone",
   "noflyzone.message.momentum_cut": "You have entered a no-fly zone",
   "noflyzone.message.shot_down": "You have entered a no-fly zone",
+  "noflyzone.message.ghast_refused": "Your ghast will not fly into the no-fly zone",
   "noflyzone.mode.zero-momentum": "Flight is stopped, but you can glide down safely",
   "noflyzone.mode.no-glide": "Elytra are immediately disabled",
   "noflyzone.mode.damage": "Take damage flying in the no-fly zone",

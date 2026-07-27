@@ -4,13 +4,10 @@
 
 ![Selecting the _No-Fly_ effect for a beacon](screenshot.jpg)
 
-Give a beacon a **No-Fly** effect and elytra stop working inside its range.
-Takeoff is refused, and anyone who glides in from outside has their wings disabled
-and falls. Riptide tridents and firework boosts are blocked too, so nothing
-gets you airborne inside the zone.
-
-The zone is exactly the beacon's own effect range, follows all the usual beacon
-rules, and is visibly anchored to something players can find, build, and break.
+Build a beacon with a **No-Fly** effect and elytra and happy ghasts stop working
+inside its range. Takeoff is refused, and anyone who glides in from outside has
+their wings disabled and falls. Riptide tridents and firework boosts are blocked
+too, so nothing gets you airborne inside the zone.
 
 ## Installation
 
@@ -39,6 +36,7 @@ beacon is active, elytra don't work in its range.
 
 - **Activating Elytra** in the zone is prevented.
 - **Riptide** tridents won't launch, and **firework rockets** won't boost.
+- **Happy ghasts** won't carry you in and are turned away from the zone.
 - and **flying into the zone** has one of three effects:
   - `zero-momentum` (default): You're slowed to walking pace but keep gliding, so you drift down and land safely.
   - `no-glide`: Elytra are immediately disabled, as if they broke. Hope you have Feather Falling IV…
@@ -103,6 +101,10 @@ This mod is covered by the [MIT License](LICENSE.txt).
 In short, you may freely use this mod in any modpack, but just don't claim you
 made it. No promises, no warranties, so don't blame me if it breaks anything or
 disadvantages you in some way, or you believe it did.
+
+This mod was co-written with Claude Opus 5. Initially it was a relatively simple
+proof-of-concept, but the extra complexities (especially the Happy Ghasts) made
+it a lot more complicated.  I have, however, checked all the code.
 
 [Comments and improvements welcome.](https://github.com/tomgidden/minecraft-noflyzone)
 

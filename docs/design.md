@@ -157,6 +157,10 @@ beacon over.
 | `NoFlyPolicy` | Whether to refuse, what each mode does in flight, plus the action-bar message and its per-player cooldown. No bypasses — operators and creative mode included. |
 | `NoFlyMode` | The three enforcement modes, and parsing them from config or command. |
 | `LivingEntityCanGlideMixin` | Refuses gliding, for the modes that stop it. `canGlide()` covers both takeoff (`Player.tryToStartFallFlying`) and per-tick flight (`LivingEntity.updateFallFlying`). |
+| `HappyGhastMixin` | Riderless-ghast redirection: a per-tick zone flag, the move-control swap, and suppression of the still timeout while fleeing. See above. |
+| `NoFlyGhastMoveControl` | `GhastMoveControl` whose `shouldBeStopped` exempts a fleeing ghast, so the still timeout cannot brake the AI steering it out. |
+| `ServerGamePacketListenerMixin` | Piloted-ghast enforcement: refuses `ServerboundMoveVehiclePacket` that moves deeper into a zone, and corrects the client. |
+| `MobAccessor` | `@Accessor` for `Mob.moveControl`, which `@Shadow` cannot reach from a `HappyGhast` mixin. |
 | `LivingEntityGlideTickMixin` | Per-tick effects for the modes where the player *keeps* flying — the velocity cap and the damage. Injected at `TAIL` of `updateFallFlying`, so vanilla's own movement has already been applied. |
 | `TridentItemMixin` | Refuses riptide launches. |
 | `FireworkRocketItemMixin` | Refuses firework boosts while gliding. |
@@ -188,6 +192,66 @@ belongs to the route, eligibility and mutation belong to the beacon.**
 `SetZoneHandler` additionally pre-checks the tier against the menu before
 consuming payment, so a doomed request doesn't cost an ingot; `ZoneMutation`
 re-reads the tier from the block entity, which is authoritative.
+
+#### Happy ghasts: two problems, two mechanisms
+
+A happy ghast carries up to four players and flies under its own power, so none
+of the elytra enforcement reaches it — `canGlide()` is never consulted, and the
+rider is a passenger rather than the thing flying.
+
+It took several wrong turns to establish that **piloted and riderless ghasts
+need entirely different treatment**, because they are moved by different things.
+
+##### Riderless: steer the AI
+
+Vanilla's own flight AI does the work. `NoFlyPolicy.steerOut` hands the ghast's
+`MoveControl` a waypoint just beyond the nearest zone face, lifted clear of
+terrain, and it flies out under normal pathing.
+
+Three things had to be got right, each found by testing rather than reading:
+
+| Trap | What happens |
+| ---- | ------------ |
+| The still timeout is the AI's **brake** | `adultGhastSetup` passes `HappyGhast::isOnStillTimeout` as `GhastMoveControl`'s `shouldBeStopped`. Arming the timeout to displace a rider also calls `stopInPlace()` and discards the waypoint. `NoFlyGhastMoveControl` supplies a predicate that exempts a fleeing ghast; `HappyGhastMixin` additionally cancels `setServerStillTimeout` outright while fleeing, since a player standing on the roof re-arms it every tick. |
+| `canReach` rejects distant targets | `GhastMoveControl` is `careful`, and sweeps the ghast's bounding box across the **whole** offset to the target, rejecting the move if any block in that volume collides. A waypoint 50 blocks away over terrain always fails, and the ghast sits still. Hence a near target, lifted until the path is clear. |
+| The waypoint must be anchored to the **zone** | An early version aimed a fixed distance ahead of the ghast's *current* position, so the target moved with the ghast and it never converged — it chased its own carrot while drifting the wrong way. |
+
+##### Piloted: reject the movement packet
+
+**A ridden happy ghast is client-authoritative.** The client reads the player's
+input, moves the ghast locally, and reports the result with
+`ServerboundMoveVehiclePacket`. The server does run `travelRidden` →
+`getRiddenInput`, but `Player.xxa`/`zza` are only populated for the local player
+on the client, so server-side that vector is **always zero**.
+
+That single fact invalidates every server-side attempt to intercept rider input,
+and cost the most time here. Diagnostics settled it: 609 consecutive calls
+logging `in=(0.0, 0.0, 0.0)` while the ghast flew happily toward the beacon.
+Zeroing a zero changes nothing.
+
+So enforcement lives in `ServerGamePacketListenerMixin`, at `handleMoveVehicle`:
+if the claimed position is deeper into the zone than the current one, the packet
+is refused. Only *inward* movement is rejected, so a player who finds themselves
+inside can always fly out.
+
+Cancelling alone is not enough — the client keeps predicting forward, flying a
+ghost the server never agreed to, and snaps back violently when anything forces
+a resync (dismounting, typically). The handler therefore does what vanilla does
+when it rejects a move: `absSnapTo` the server's position, then send a
+`ClientboundMoveVehiclePacket`. The correction lands every tick the player pushes
+inward, which is what makes the boundary feel like a wall rather than like lag.
+
+##### Two traps worth recording
+
+`@Shadow` resolves only against members **declared on the target class**, not
+inherited ones. `Mob.moveControl` and `ServerCommonPacketListenerImpl.send` both
+failed this way, each taking the server down at startup. Use an `@Accessor` on
+the declaring class, or reach the member through public API.
+
+Anything injected into an entity **constructor** runs on the client too, during
+`ClientboundAddEntityPacket` handling — before the entity has an id. A debug line
+calling `getId()` there threw inside packet handling and disconnected the client
+with a protocol error. Guard constructor injections with `isClientSide()`.
 
 #### Why enforcement needs two hooks
 

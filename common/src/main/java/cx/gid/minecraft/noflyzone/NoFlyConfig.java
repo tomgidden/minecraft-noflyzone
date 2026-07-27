@@ -59,6 +59,16 @@ public final class NoFlyConfig {
     /** When true, firework rockets can't be used to boost a glide inside a zone. */
     public final boolean blockFireworkBoost;
 
+    /**
+     * When true, happy ghasts are steered out of a zone rather than allowed to
+     * carry riders through it.
+     *
+     * <p>Same reasoning as {@link #blockRiptide} and {@link #blockFireworkBoost}:
+     * another way to get airborne that isn't elytra, and leaving it open would
+     * make the zone's central promise false.
+     */
+    public final boolean blockHappyGhast;
+
     /** When true, an action-bar message explains each refusal. */
     public final boolean actionBarMessages;
 
@@ -73,7 +83,7 @@ public final class NoFlyConfig {
     public final boolean debug;
 
     private NoFlyConfig(NoFlyMode mode, int extraRadius, int requiredTier, int damageIntervalTicks,
-                        boolean blockRiptide, boolean blockFireworkBoost,
+                        boolean blockRiptide, boolean blockFireworkBoost, boolean blockHappyGhast,
                         boolean actionBarMessages, int messageCooldownTicks, boolean debug) {
         this.mode = mode;
         this.extraRadius = extraRadius;
@@ -81,6 +91,7 @@ public final class NoFlyConfig {
         this.damageIntervalTicks = damageIntervalTicks;
         this.blockRiptide = blockRiptide;
         this.blockFireworkBoost = blockFireworkBoost;
+        this.blockHappyGhast = blockHappyGhast;
         this.actionBarMessages = actionBarMessages;
         this.messageCooldownTicks = messageCooldownTicks;
         this.debug = debug;
@@ -92,6 +103,7 @@ public final class NoFlyConfig {
     private static final int DEFAULT_DAMAGE_INTERVAL_TICKS = 20;
     private static final boolean DEFAULT_BLOCK_RIPTIDE = true;
     private static final boolean DEFAULT_BLOCK_FIREWORK_BOOST = true;
+    private static final boolean DEFAULT_BLOCK_HAPPY_GHAST = true;
     private static final boolean DEFAULT_ACTION_BAR_MESSAGES = true;
     private static final int DEFAULT_MESSAGE_COOLDOWN_TICKS = 40;
 
@@ -125,6 +137,7 @@ public final class NoFlyConfig {
         NoFlyConfig current = get();
         instance = new NoFlyConfig(mode, current.extraRadius, current.requiredTier,
             current.damageIntervalTicks, current.blockRiptide, current.blockFireworkBoost,
+            current.blockHappyGhast,
             current.actionBarMessages, current.messageCooldownTicks, current.debug);
         return write(configPath(), instance);
     }
@@ -155,6 +168,7 @@ public final class NoFlyConfig {
 
         boolean blockRiptide = readBoolean(props, "block_riptide", DEFAULT_BLOCK_RIPTIDE);
         boolean blockFireworkBoost = readBoolean(props, "block_firework_boost", DEFAULT_BLOCK_FIREWORK_BOOST);
+        boolean blockHappyGhast = readBoolean(props, "block_happy_ghast", DEFAULT_BLOCK_HAPPY_GHAST);
         boolean actionBarMessages = readBoolean(props, "action_bar_messages", DEFAULT_ACTION_BAR_MESSAGES);
         int messageCooldownTicks = readInt(props, "message_cooldown_ticks", DEFAULT_MESSAGE_COOLDOWN_TICKS, 0, 1200);
 
@@ -162,6 +176,7 @@ public final class NoFlyConfig {
 
         NoFlyConfig config = new NoFlyConfig(
             mode, extraRadius, requiredTier, damageIntervalTicks, blockRiptide, blockFireworkBoost,
+            blockHappyGhast,
             actionBarMessages, messageCooldownTicks, debug
         );
 
@@ -244,6 +259,7 @@ public final class NoFlyConfig {
                 props.setProperty("damage_interval_ticks", Integer.toString(config.damageIntervalTicks));
                 props.setProperty("block_riptide", Boolean.toString(config.blockRiptide));
                 props.setProperty("block_firework_boost", Boolean.toString(config.blockFireworkBoost));
+                props.setProperty("block_happy_ghast", Boolean.toString(config.blockHappyGhast));
                 props.setProperty("action_bar_messages", Boolean.toString(config.actionBarMessages));
                 props.setProperty("message_cooldown_ticks", Integer.toString(config.messageCooldownTicks));
                 props.setProperty("debug", Boolean.toString(config.debug));
@@ -269,6 +285,8 @@ public final class NoFlyConfig {
                     + "                         Each hit is 4.0 damage, so this decides how punishing it is.\n"
                     + "block_riptide:           also refuse riptide tridents inside a zone.\n"
                     + "block_firework_boost:    also refuse firework rocket boosts inside a zone.\n"
+                    + "block_happy_ghast:       steer happy ghasts out of a zone instead of letting them\n"
+                    + "                         carry riders through it.\n"
                     + "action_bar_messages:     tell players why their elytra stopped working.\n"
                     + "message_cooldown_ticks:  minimum ticks between messages to the same player.\n"
                     + "debug:                   log zone registration and enforcement to the console."

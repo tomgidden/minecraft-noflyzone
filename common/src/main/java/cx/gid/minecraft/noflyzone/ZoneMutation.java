@@ -8,7 +8,6 @@ import net.minecraft.world.level.block.entity.BeaconBlockEntity;
 /**
  * The one place a beacon's no-fly flag is validated and changed.
  *
- * <h2>Why this is separate</h2>
  * Two routes reach this state change: a modded client confirming No-Fly in the
  * beacon screen ({@link SetZoneHandler}) and an operator running
  * {@code /noflyzone} ({@link NoFlyCommand}). They authenticate differently -- one
@@ -16,8 +15,8 @@ import net.minecraft.world.level.block.entity.BeaconBlockEntity;
  * rules about what makes a beacon eligible, and the mutation itself, must not
  * drift apart between them.
  *
- * <p>So the callers own their <em>authorisation</em>, and this class owns
- * <em>eligibility and mutation</em>. The split is deliberate: whether you are
+ * So the callers own their authorisation, and this class owns
+ * eligibility and mutation. The split is deliberate: whether you are
  * allowed to ask is a property of the route, whereas whether the beacon can
  * comply is a property of the beacon.
  */
@@ -26,7 +25,7 @@ public final class ZoneMutation {
     /**
      * Pyramid tier required to project a zone.
      *
-     * <p>Defaults to 4, matching the tier vanilla requires for a secondary
+     * Defaults to 4, matching the tier vanilla requires for a secondary
      * beacon effect -- the row No-Fly is offered in. Lowering it via
      * {@code required_tier} only affects {@link NoFlyCommand}, since the beacon
      * screen's button placement is vanilla's to decide.
@@ -66,11 +65,11 @@ public final class ZoneMutation {
     /**
      * Validates and applies a no-fly flag change to the beacon at {@code pos}.
      *
-     * <p>Callers must have already established that the actor is permitted to
-     * make the request. Everything about whether the <em>beacon</em> can comply
+     * Callers must have already established that the actor is permitted to
+     * make the request. Everything about whether the beacon can comply
      * is decided here.
      *
-     * <p>Turning a zone off removes it from {@link NoFlyZones} at once rather
+     * Turning a zone off removes it from {@link NoFlyZones} at once rather
      * than letting it age out, so deactivation feels immediate. Turning one on
      * needs no such step: the beacon publishes itself on its next tick.
      *
