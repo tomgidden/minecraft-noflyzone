@@ -55,7 +55,7 @@ public abstract class ServerGamePacketListenerMixin {
             return;
         }
 
-        if (!NoFlyPolicy.refusesVehicleMove(vehicle, packet.position())) {
+        if (!NoFlyPolicy.refusesVehicleMove(vehicle, packet.movingTo().position())) {
             return;
         }
 

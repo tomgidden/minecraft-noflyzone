@@ -181,7 +181,7 @@ public final class NoFlyPolicy {
 
         double scale = WALKING_SPEED / Math.sqrt(horizontalSq);
         player.setDeltaMovement(movement.x * scale, movement.y, movement.z * scale);
-        player.hurtMarked = true; // forces the velocity update to reach the client
+        player.syncVelocity = true; // forces the velocity update to reach the client
 
         notifyRefused(player, NoFlyMessages.MOMENTUM_CUT);
     }
