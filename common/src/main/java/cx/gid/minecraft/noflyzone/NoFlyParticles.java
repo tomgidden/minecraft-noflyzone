@@ -9,6 +9,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -270,6 +271,26 @@ public final class NoFlyParticles {
             return fallback;
         }
         return found.get();
+    }
+
+    /**
+     * Every particle id that can legally be named in the config.
+     *
+     * <p>Filtered to {@link SimpleParticleType} for the same reason
+     * {@link #parseType} rejects the rest: a particle carrying extra data
+     * cannot be spawned from a bare id, so offering one as a completion would
+     * be offering a value that is then refused.
+     *
+     * <p>Computed on each call rather than cached. It is reached only from
+     * tab-completion, where the cost is irrelevant and a stale list after a
+     * datapack reload would not be.
+     */
+    public static List<String> simpleParticleIds() {
+        return BuiltInRegistries.PARTICLE_TYPE.entrySet().stream()
+            .filter(entry -> entry.getValue() instanceof SimpleParticleType)
+            .map(entry -> entry.getKey().identifier().toString())
+            .sorted()
+            .toList();
     }
 
     /** The registry id of a particle, for messages and for writing the config back. */

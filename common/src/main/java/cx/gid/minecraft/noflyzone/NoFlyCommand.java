@@ -2,7 +2,10 @@ package cx.gid.minecraft.noflyzone;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
@@ -12,6 +15,9 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.PermissionCheck;
 import net.minecraft.server.permissions.Permissions;
 import net.minecraft.world.level.block.entity.BeaconBlockEntity;
+
+import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * {@code /noflyzone} -- operator control of no-fly beacons without a client mod.
@@ -65,6 +71,7 @@ public final class NoFlyCommand {
                 .then(radiusAware("status", null))
                 .then(modeSubcommand())
                 .then(reloadSubcommand())
+                .then(configSubcommand())
         );
     }
 
@@ -87,6 +94,124 @@ public final class NoFlyCommand {
                 .executes(ctx -> setMode(ctx.getSource(), mode)));
         }
         return node;
+    }
+
+    /**
+     * {@code /noflyzone config [<key> [<value>]]} -- reads or changes any
+     * setting, without editing a file or restarting.
+     *
+     * <p>One generic subcommand rather than a literal per setting. There are
+     * twenty-six of them, they change as features are added, and hand-writing
+     * a node each would guarantee the command and the config file drift apart.
+     * The key is a literal per setting so tab-completion offers them and a
+     * typo is rejected by Brigadier; the value is a plain string, validated by
+     * the config parser itself -- the same code that validates the file, so
+     * "16" from a command and "16" from the file cannot disagree.
+     *
+     * <p>Values are accepted as text and clamped rather than typed per setting
+     * (IntegerArgumentType and friends). The parser already knows every range
+     * and reports out-of-range values as warnings with the clamped result,
+     * which is more useful than Brigadier refusing to parse -- and it keeps
+     * this table-driven rather than needing a type annotation per key.
+     */
+    private static LiteralArgumentBuilder<CommandSourceStack> configSubcommand() {
+        LiteralArgumentBuilder<CommandSourceStack> node = Commands.literal("config")
+            .executes(ctx -> listSettings(ctx.getSource()));
+
+        for (String key : NoFlyConfig.SETTING_KEYS) {
+            node = node.then(Commands.literal(key)
+                .executes(ctx -> reportSetting(ctx.getSource(), key))
+                .then(Commands.argument("value", StringArgumentType.greedyString())
+                    .suggests((ctx, builder) -> suggestValues(key, builder))
+                    .executes(ctx -> setSetting(ctx.getSource(), key,
+                        StringArgumentType.getString(ctx, "value")))));
+        }
+        return node;
+    }
+
+    /**
+     * Completions for a setting's value.
+     *
+     * <p>What is useful differs by setting, and guessing wrong is worse than
+     * offering nothing: a particle setting with no suggestions means typing out
+     * registry ids by hand, whereas a numeric one with a list of arbitrary
+     * numbers would be noise. So booleans offer true/false, modes offer the
+     * modes, particle settings offer every simple particle id, and numbers
+     * offer the current value as a starting point to edit.
+     */
+    private static CompletableFuture<Suggestions> suggestValues(String key, SuggestionsBuilder builder) {
+        String current = NoFlyConfig.getSetting(key);
+
+        if (key.equals("mode")) {
+            for (NoFlyMode mode : NoFlyMode.values()) {
+                offer(builder, mode.configName());
+            }
+        } else if (key.endsWith("_type")) {
+            for (String id : NoFlyParticles.simpleParticleIds()) {
+                offer(builder, id);
+            }
+        } else if ("true".equals(current) || "false".equals(current)) {
+            offer(builder, "true");
+            offer(builder, "false");
+        } else if (current != null) {
+            offer(builder, current);
+        }
+        return builder.buildFuture();
+    }
+
+    /** Offers a completion only if it matches what has been typed so far. */
+    private static void offer(SuggestionsBuilder builder, String candidate) {
+        if (candidate.toLowerCase(Locale.ROOT).startsWith(builder.getRemainingLowerCase())) {
+            builder.suggest(candidate);
+        }
+    }
+
+    private static int listSettings(CommandSourceStack source) {
+        source.sendSuccess(() -> msg(source, "noflyzone.command.config_header"), false);
+        for (String key : NoFlyConfig.SETTING_KEYS) {
+            String value = NoFlyConfig.getSetting(key);
+            source.sendSuccess(() -> Component.literal("  " + key + " = " + value), false);
+        }
+        return 1;
+    }
+
+    private static int reportSetting(CommandSourceStack source, String key) {
+        String value = NoFlyConfig.getSetting(key);
+        source.sendSuccess(() -> msg(source, "noflyzone.command.config_is", key, value), false);
+        return 1;
+    }
+
+    private static int setSetting(CommandSourceStack source, String key, String requested) {
+        String before = NoFlyConfig.getSetting(key);
+        boolean persisted = NoFlyConfig.setSetting(key, requested.trim());
+        String after = NoFlyConfig.getSetting(key);
+
+        if (after.equals(before)) {
+            // Either it was already that value, or the parser rejected what was
+            // asked for and kept what it had. Both are worth saying plainly
+            // rather than reporting a success that did nothing.
+            source.sendFailure(msg(source, "noflyzone.command.config_unchanged", key, after));
+            return 0;
+        }
+
+        // The parser clamps or falls back rather than refusing, so what was
+        // asked for and what took effect can legitimately differ. Report the
+        // adjustment as the headline in that case: "set to 64" as the first
+        // thing an operator reads, after they typed 99999, invites them to
+        // believe the 99999 was accepted and 64 is something else.
+        if (after.equals(requested.trim())) {
+            source.sendSuccess(() -> msg(source, "noflyzone.command.config_set", key, after), true);
+        } else {
+            source.sendSuccess(() -> msg(source, "noflyzone.command.config_adjusted",
+                key, requested.trim(), after), true);
+        }
+
+        if (!persisted) {
+            source.sendFailure(msg(source, "noflyzone.command.mode_not_saved"));
+        }
+
+        NoFlyDebug.log("config {} set to {} by {}", key, after, source.getTextName());
+        return 1;
     }
 
     /**

@@ -8,6 +8,7 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Properties;
 
 /**
@@ -246,6 +247,77 @@ public final class NoFlyConfig {
     }
 
     /**
+     * Changes one setting and persists it, in the same way {@link #setMode}
+     * changes the mode.
+     *
+     * <p>Implemented as a round trip rather than as a setter per field: the
+     * config is serialised to the properties it is stored as, one key is
+     * replaced, and the result re-parsed. That means a change from a command
+     * goes through byte-for-byte the same validation as a change made by
+     * editing the file -- ranges clamped, unknown particles rejected, warnings
+     * logged -- with no second implementation to drift out of step. It also
+     * means adding a setting needs no work here at all.
+     *
+     * <p>The cost is re-parsing 26 values to change one, which happens only
+     * when an operator types a command and is invisible against the cost of
+     * writing the file afterwards.
+     *
+     * @param key   the config key, as it appears in the file
+     * @param value the new value, in its file representation
+     * @return true if the change was written to disk; the live config is
+     *         updated either way
+     */
+    public static synchronized boolean setSetting(String key, String value) {
+        Properties props = toProperties(get());
+        props.setProperty(key, value);
+        instance = parse(props);
+        return write(configPath(), instance);
+    }
+
+    /** The current value of a setting, in its file representation. */
+    public static String getSetting(String key) {
+        return toProperties(get()).getProperty(key);
+    }
+
+    /**
+     * Every setting key, in the order the config file documents them.
+     *
+     * <p>Declared explicitly rather than taken from {@code Properties}, whose
+     * key set is unordered -- a listing that shuffled between invocations
+     * would be needlessly hard to read, and grouping related settings together
+     * is most of what makes the list legible.
+     */
+    public static final List<String> SETTING_KEYS = List.of(
+        "mode",
+        "extra_radius",
+        "required_tier",
+        "damage_interval_ticks",
+        "block_riptide",
+        "block_firework_boost",
+        "block_happy_ghast",
+        "action_bar_messages",
+        "message_cooldown_ticks",
+        "particles_damage",
+        "particle_burst_count",
+        "particle_burst_type",
+        "particle_hit_count",
+        "particle_hit_type",
+        "particles_tracer",
+        "particle_tracer_type",
+        "particle_tracer_spacing",
+        "particle_tracer_max_count",
+        "particle_tracer_jitter",
+        "particles_trail",
+        "particle_trail_count",
+        "particle_trail_type",
+        "particle_trail_interval_ticks",
+        "particles_refused",
+        "particle_refused_count",
+        "particle_refused_type",
+        "debug"
+    );
+
+    /**
      * Re-reads the config file, replacing the live settings.
      *
      * <p>Most settings are consulted through {@link #get()} at the moment they
@@ -288,6 +360,27 @@ public final class NoFlyConfig {
             }
         }
 
+        NoFlyConfig config = parse(props);
+
+        // Write the file on first run so operators have a documented, editable
+        // copy with the values actually in effect.
+        if (!Files.isRegularFile(path)) {
+            write(path, config);
+        }
+        return config;
+    }
+
+    /**
+     * Builds a config from a set of properties, warning about and replacing
+     * anything invalid.
+     *
+     * <p>Split out from {@link #load} so the same validation runs whether the
+     * properties came from the file on disk or were assembled in memory -- see
+     * {@link #withSetting}. Every value has a documented default and a clamped
+     * range, so this cannot fail; the worst case is a config full of defaults
+     * and a log full of warnings.
+     */
+    private static NoFlyConfig parse(Properties props) {
         NoFlyMode mode = readMode(props, "mode", DEFAULT_MODE);
         int extraRadius = readInt(props, "extra_radius", DEFAULT_EXTRA_RADIUS, 0, 256);
         int requiredTier = readInt(props, "required_tier", DEFAULT_REQUIRED_TIER, 1, 4);
@@ -352,12 +445,6 @@ public final class NoFlyConfig {
             particleTracerType,
             debug
         );
-
-        // Write the file on first run so operators have a documented, editable
-        // copy with the values actually in effect.
-        if (!Files.isRegularFile(path)) {
-            write(path, config);
-        }
         return config;
     }
 
@@ -434,6 +521,46 @@ public final class NoFlyConfig {
     }
 
     /**
+     * The config as the key/value pairs it is persisted as.
+     *
+     * <p>Every setting appears exactly once here and exactly once in
+     * {@link #parse}, which makes the pair a round trip: {@code parse(
+     * toProperties(c))} is {@code c}. {@link #withSetting} depends on that,
+     * and so does the file on disk being a faithful record of what is running.
+     */
+    private static Properties toProperties(NoFlyConfig config) {
+        Properties props = new Properties();
+        props.setProperty("mode", config.mode.configName());
+        props.setProperty("extra_radius", Integer.toString(config.extraRadius));
+        props.setProperty("required_tier", Integer.toString(config.requiredTier));
+        props.setProperty("damage_interval_ticks", Integer.toString(config.damageIntervalTicks));
+        props.setProperty("block_riptide", Boolean.toString(config.blockRiptide));
+        props.setProperty("block_firework_boost", Boolean.toString(config.blockFireworkBoost));
+        props.setProperty("block_happy_ghast", Boolean.toString(config.blockHappyGhast));
+        props.setProperty("action_bar_messages", Boolean.toString(config.actionBarMessages));
+        props.setProperty("message_cooldown_ticks", Integer.toString(config.messageCooldownTicks));
+        props.setProperty("particles_damage", Boolean.toString(config.particlesDamage));
+        props.setProperty("particles_trail", Boolean.toString(config.particlesTrail));
+        props.setProperty("particles_tracer", Boolean.toString(config.particlesTracer));
+        props.setProperty("particles_refused", Boolean.toString(config.particlesRefused));
+        props.setProperty("particle_burst_count", Integer.toString(config.particleBurstCount));
+        props.setProperty("particle_hit_count", Integer.toString(config.particleHitCount));
+        props.setProperty("particle_trail_count", Integer.toString(config.particleTrailCount));
+        props.setProperty("particle_refused_count", Integer.toString(config.particleRefusedCount));
+        props.setProperty("particle_trail_interval_ticks", Integer.toString(config.particleTrailIntervalTicks));
+        props.setProperty("particle_tracer_spacing", Double.toString(config.particleTracerSpacing));
+        props.setProperty("particle_tracer_max_count", Integer.toString(config.particleTracerMaxCount));
+        props.setProperty("particle_tracer_jitter", Double.toString(config.particleTracerJitter));
+        props.setProperty("particle_burst_type", NoFlyParticles.nameOf(config.particleBurstType));
+        props.setProperty("particle_hit_type", NoFlyParticles.nameOf(config.particleHitType));
+        props.setProperty("particle_trail_type", NoFlyParticles.nameOf(config.particleTrailType));
+        props.setProperty("particle_refused_type", NoFlyParticles.nameOf(config.particleRefusedType));
+        props.setProperty("particle_tracer_type", NoFlyParticles.nameOf(config.particleTracerType));
+        props.setProperty("debug", Boolean.toString(config.debug));
+        return props;
+    }
+
+    /**
      * Writes the config out, creating it if absent and replacing it otherwise.
      *
      * <p>Note that {@code Properties.store} does not preserve comments, so any an
@@ -447,34 +574,7 @@ public final class NoFlyConfig {
         try {
             Files.createDirectories(path.getParent());
             try (OutputStream out = Files.newOutputStream(path)) {
-                Properties props = new Properties();
-                props.setProperty("mode", config.mode.configName());
-                props.setProperty("extra_radius", Integer.toString(config.extraRadius));
-                props.setProperty("required_tier", Integer.toString(config.requiredTier));
-                props.setProperty("damage_interval_ticks", Integer.toString(config.damageIntervalTicks));
-                props.setProperty("block_riptide", Boolean.toString(config.blockRiptide));
-                props.setProperty("block_firework_boost", Boolean.toString(config.blockFireworkBoost));
-                props.setProperty("block_happy_ghast", Boolean.toString(config.blockHappyGhast));
-                props.setProperty("action_bar_messages", Boolean.toString(config.actionBarMessages));
-                props.setProperty("message_cooldown_ticks", Integer.toString(config.messageCooldownTicks));
-                props.setProperty("particles_damage", Boolean.toString(config.particlesDamage));
-                props.setProperty("particles_trail", Boolean.toString(config.particlesTrail));
-                props.setProperty("particles_refused", Boolean.toString(config.particlesRefused));
-                props.setProperty("particles_tracer", Boolean.toString(config.particlesTracer));
-                props.setProperty("particle_burst_count", Integer.toString(config.particleBurstCount));
-                props.setProperty("particle_hit_count", Integer.toString(config.particleHitCount));
-                props.setProperty("particle_trail_count", Integer.toString(config.particleTrailCount));
-                props.setProperty("particle_refused_count", Integer.toString(config.particleRefusedCount));
-                props.setProperty("particle_trail_interval_ticks", Integer.toString(config.particleTrailIntervalTicks));
-                props.setProperty("particle_tracer_spacing", Double.toString(config.particleTracerSpacing));
-                props.setProperty("particle_tracer_max_count", Integer.toString(config.particleTracerMaxCount));
-                props.setProperty("particle_tracer_jitter", Double.toString(config.particleTracerJitter));
-                props.setProperty("particle_burst_type", NoFlyParticles.nameOf(config.particleBurstType));
-                props.setProperty("particle_hit_type", NoFlyParticles.nameOf(config.particleHitType));
-                props.setProperty("particle_trail_type", NoFlyParticles.nameOf(config.particleTrailType));
-                props.setProperty("particle_refused_type", NoFlyParticles.nameOf(config.particleRefusedType));
-                props.setProperty("particle_tracer_type", NoFlyParticles.nameOf(config.particleTracerType));
-                props.setProperty("debug", Boolean.toString(config.debug));
+                Properties props = toProperties(config);
                 props.store(out,
                     "No-Fly Zone settings.\n"
                     + "\n"
