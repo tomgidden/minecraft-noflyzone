@@ -1,4 +1,4 @@
-**Minecraft 26 – 26.x | Fabric and NeoForge**
+**Minecraft 26.3 | Fabric and NeoForge**
 
 Build a beacon with a **No-Fly** effect and elytra and happy ghasts stop working
 inside its range.  Enforcement is all server-side - **vanilla clients are fully
