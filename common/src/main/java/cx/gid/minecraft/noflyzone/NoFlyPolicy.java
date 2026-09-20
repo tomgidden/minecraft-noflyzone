@@ -142,7 +142,12 @@ public final class NoFlyPolicy {
     public static void applyInFlightEffects(ServerPlayer player) {
         switch (mode()) {
             case ZERO_MOMENTUM -> clampMomentum(player);
-            case DAMAGE -> applyDamage(player);
+            case DAMAGE -> {
+                applyDamage(player);
+                // Per-tick rather than per-hit: a trail only reads as tracking
+                // if it is continuous between hits. Rate-limited inside.
+                NoFlyParticles.tracer(player);
+            }
             case NO_GLIDE -> { /* handled in canGlide; nothing to do per-tick */ }
         }
     }
@@ -227,6 +232,7 @@ public final class NoFlyPolicy {
         // two stay in step even if something else made the player invulnerable.
         if (hurt) {
             damageElytra(player);
+            NoFlyParticles.flak(player);
             notifyRefused(player, NoFlyMessages.SHOT_DOWN);
         }
     }
@@ -565,17 +571,24 @@ public final class NoFlyPolicy {
     }
 
     /**
-     * Shows the "flight is disabled here" action-bar message, subject to the
-     * configured cooldown.
+     * Announces a refusal: the action-bar message and the particle puff that go
+     * with being stopped, both subject to the configured cooldown.
      *
      * Enforcement fires every tick while a player is held in a zone, so without
      * the cooldown the message would be rewritten 20 times a second -- visually
      * identical, but it would suppress any other action-bar text the server
-     * wants to show.
+     * wants to show -- and the particles would be a packet storm.
+     *
+     * <p>The cooldown is shared deliberately, so the two stay in step and a
+     * player sees one coherent "you were stopped" event rather than a message
+     * and a puff on separate rhythms. Either can be switched off on its own
+     * ({@code action_bar_messages}, {@code particles_refused}) without
+     * affecting the other; the cooldown is checked first so turning the message
+     * off does not silently change the particle rate.
      */
     public static void notifyRefused(ServerPlayer player, String translationKey) {
         NoFlyConfig config = NoFlyConfig.get();
-        if (!config.actionBarMessages) {
+        if (!config.actionBarMessages && !config.particlesRefused) {
             return;
         }
 
@@ -592,7 +605,16 @@ public final class NoFlyPolicy {
         NoFlyDebug.log("refused {} for {} at {}",
             translationKey, player.getGameProfile().name(), player.blockPosition());
 
-        player.sendOverlayMessage(NoFlyMessages.of(player, translationKey).withStyle(ChatFormatting.RED));
+        if (config.actionBarMessages) {
+            player.sendOverlayMessage(NoFlyMessages.of(player, translationKey).withStyle(ChatFormatting.RED));
+        }
+
+        // Only the non-damage modes get the quiet puff. Damage mode has its own,
+        // louder visual fired from applyDamage on the damage cadence, and
+        // showing both would read as two different things happening.
+        if (config.particlesRefused && mode() != NoFlyMode.DAMAGE) {
+            NoFlyParticles.refused(player);
+        }
     }
 
     /** Drops a player's message cooldown state when they disconnect. */

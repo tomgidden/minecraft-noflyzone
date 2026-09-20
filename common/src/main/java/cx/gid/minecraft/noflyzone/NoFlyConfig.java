@@ -1,5 +1,7 @@
 package cx.gid.minecraft.noflyzone;
 
+import net.minecraft.core.particles.SimpleParticleType;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -79,12 +81,47 @@ public final class NoFlyConfig {
      */
     public final int messageCooldownTicks;
 
+    /** When true, damage-mode hits throw up flak particles around the player. */
+    public final boolean particlesDamage;
+
+    /** When true, a sparse tracer trail follows a player being shot at. */
+    public final boolean particlesTracer;
+
+    /** When true, refusals in the non-damage modes show a particle puff. */
+    public final boolean particlesRefused;
+
+    /** Airbursts per damage hit. 0 disables the layer without disabling the rest. */
+    public final int particleBurstCount;
+
+    /** Particles in the puff at the player on a damage hit. */
+    public final int particleHitCount;
+
+    /** Particles per tracer emission. */
+    public final int particleTracerCount;
+
+    /** Particles in a non-damage refusal puff. */
+    public final int particleRefusedCount;
+
+    /** Ticks between tracer emissions; 1 is every tick. */
+    public final int particleTracerIntervalTicks;
+
+    public final SimpleParticleType particleBurstType;
+    public final SimpleParticleType particleHitType;
+    public final SimpleParticleType particleTracerType;
+    public final SimpleParticleType particleRefusedType;
+
     /** When true, the mod logs zone registration and enforcement diagnostics. */
     public final boolean debug;
 
     private NoFlyConfig(NoFlyMode mode, int extraRadius, int requiredTier, int damageIntervalTicks,
                         boolean blockRiptide, boolean blockFireworkBoost, boolean blockHappyGhast,
-                        boolean actionBarMessages, int messageCooldownTicks, boolean debug) {
+                        boolean actionBarMessages, int messageCooldownTicks,
+                        boolean particlesDamage, boolean particlesTracer, boolean particlesRefused,
+                        int particleBurstCount, int particleHitCount, int particleTracerCount,
+                        int particleRefusedCount, int particleTracerIntervalTicks,
+                        SimpleParticleType particleBurstType, SimpleParticleType particleHitType,
+                        SimpleParticleType particleTracerType, SimpleParticleType particleRefusedType,
+                        boolean debug) {
         this.mode = mode;
         this.extraRadius = extraRadius;
         this.requiredTier = requiredTier;
@@ -94,6 +131,18 @@ public final class NoFlyConfig {
         this.blockHappyGhast = blockHappyGhast;
         this.actionBarMessages = actionBarMessages;
         this.messageCooldownTicks = messageCooldownTicks;
+        this.particlesDamage = particlesDamage;
+        this.particlesTracer = particlesTracer;
+        this.particlesRefused = particlesRefused;
+        this.particleBurstCount = particleBurstCount;
+        this.particleHitCount = particleHitCount;
+        this.particleTracerCount = particleTracerCount;
+        this.particleRefusedCount = particleRefusedCount;
+        this.particleTracerIntervalTicks = particleTracerIntervalTicks;
+        this.particleBurstType = particleBurstType;
+        this.particleHitType = particleHitType;
+        this.particleTracerType = particleTracerType;
+        this.particleRefusedType = particleRefusedType;
         this.debug = debug;
     }
 
@@ -106,6 +155,19 @@ public final class NoFlyConfig {
     private static final boolean DEFAULT_BLOCK_HAPPY_GHAST = true;
     private static final boolean DEFAULT_ACTION_BAR_MESSAGES = true;
     private static final int DEFAULT_MESSAGE_COOLDOWN_TICKS = 40;
+
+    // Particles are on by default for damage mode -- being shot down is the
+    // mode that most needs to look like something -- and for the quieter
+    // refusal puff. Tracers are off: they are the most expensive layer and the
+    // most likely to be thought noisy, so they are opt-in.
+    private static final boolean DEFAULT_PARTICLES_DAMAGE = true;
+    private static final boolean DEFAULT_PARTICLES_TRACER = false;
+    private static final boolean DEFAULT_PARTICLES_REFUSED = true;
+    private static final int DEFAULT_PARTICLE_BURST_COUNT = 6;
+    private static final int DEFAULT_PARTICLE_HIT_COUNT = 8;
+    private static final int DEFAULT_PARTICLE_TRACER_COUNT = 2;
+    private static final int DEFAULT_PARTICLE_REFUSED_COUNT = 8;
+    private static final int DEFAULT_PARTICLE_TRACER_INTERVAL_TICKS = 3;
 
     private static volatile NoFlyConfig instance;
 
@@ -138,7 +200,13 @@ public final class NoFlyConfig {
         instance = new NoFlyConfig(mode, current.extraRadius, current.requiredTier,
             current.damageIntervalTicks, current.blockRiptide, current.blockFireworkBoost,
             current.blockHappyGhast,
-            current.actionBarMessages, current.messageCooldownTicks, current.debug);
+            current.actionBarMessages, current.messageCooldownTicks,
+            current.particlesDamage, current.particlesTracer, current.particlesRefused,
+            current.particleBurstCount, current.particleHitCount, current.particleTracerCount,
+            current.particleRefusedCount, current.particleTracerIntervalTicks,
+            current.particleBurstType, current.particleHitType, current.particleTracerType,
+            current.particleRefusedType,
+            current.debug);
         return write(configPath(), instance);
     }
 
@@ -172,12 +240,40 @@ public final class NoFlyConfig {
         boolean actionBarMessages = readBoolean(props, "action_bar_messages", DEFAULT_ACTION_BAR_MESSAGES);
         int messageCooldownTicks = readInt(props, "message_cooldown_ticks", DEFAULT_MESSAGE_COOLDOWN_TICKS, 0, 1200);
 
+        boolean particlesDamage = readBoolean(props, "particles_damage", DEFAULT_PARTICLES_DAMAGE);
+        boolean particlesTracer = readBoolean(props, "particles_tracer", DEFAULT_PARTICLES_TRACER);
+        boolean particlesRefused = readBoolean(props, "particles_refused", DEFAULT_PARTICLES_REFUSED);
+
+        // Upper bounds are deliberately modest. Each particle is a packet to
+        // every client in range, so a hundred of them per hit per player is a
+        // denial of service dressed as a setting.
+        int particleBurstCount = readInt(props, "particle_burst_count", DEFAULT_PARTICLE_BURST_COUNT, 0, 64);
+        int particleHitCount = readInt(props, "particle_hit_count", DEFAULT_PARTICLE_HIT_COUNT, 0, 64);
+        int particleTracerCount = readInt(props, "particle_tracer_count", DEFAULT_PARTICLE_TRACER_COUNT, 0, 32);
+        int particleRefusedCount = readInt(props, "particle_refused_count", DEFAULT_PARTICLE_REFUSED_COUNT, 0, 64);
+        int particleTracerIntervalTicks = readInt(props, "particle_tracer_interval_ticks",
+            DEFAULT_PARTICLE_TRACER_INTERVAL_TICKS, 1, 40);
+
+        SimpleParticleType particleBurstType = NoFlyParticles.parseType(
+            "particle_burst_type", props.getProperty("particle_burst_type"), NoFlyParticles.DEFAULT_BURST);
+        SimpleParticleType particleHitType = NoFlyParticles.parseType(
+            "particle_hit_type", props.getProperty("particle_hit_type"), NoFlyParticles.DEFAULT_HIT);
+        SimpleParticleType particleTracerType = NoFlyParticles.parseType(
+            "particle_tracer_type", props.getProperty("particle_tracer_type"), NoFlyParticles.DEFAULT_TRACER);
+        SimpleParticleType particleRefusedType = NoFlyParticles.parseType(
+            "particle_refused_type", props.getProperty("particle_refused_type"), NoFlyParticles.DEFAULT_REFUSED);
+
         boolean debug = readBoolean(props, "debug", false);
 
         NoFlyConfig config = new NoFlyConfig(
             mode, extraRadius, requiredTier, damageIntervalTicks, blockRiptide, blockFireworkBoost,
             blockHappyGhast,
-            actionBarMessages, messageCooldownTicks, debug
+            actionBarMessages, messageCooldownTicks,
+            particlesDamage, particlesTracer, particlesRefused,
+            particleBurstCount, particleHitCount, particleTracerCount, particleRefusedCount,
+            particleTracerIntervalTicks,
+            particleBurstType, particleHitType, particleTracerType, particleRefusedType,
+            debug
         );
 
         // Write the file on first run so operators have a documented, editable
@@ -262,6 +358,18 @@ public final class NoFlyConfig {
                 props.setProperty("block_happy_ghast", Boolean.toString(config.blockHappyGhast));
                 props.setProperty("action_bar_messages", Boolean.toString(config.actionBarMessages));
                 props.setProperty("message_cooldown_ticks", Integer.toString(config.messageCooldownTicks));
+                props.setProperty("particles_damage", Boolean.toString(config.particlesDamage));
+                props.setProperty("particles_tracer", Boolean.toString(config.particlesTracer));
+                props.setProperty("particles_refused", Boolean.toString(config.particlesRefused));
+                props.setProperty("particle_burst_count", Integer.toString(config.particleBurstCount));
+                props.setProperty("particle_hit_count", Integer.toString(config.particleHitCount));
+                props.setProperty("particle_tracer_count", Integer.toString(config.particleTracerCount));
+                props.setProperty("particle_refused_count", Integer.toString(config.particleRefusedCount));
+                props.setProperty("particle_tracer_interval_ticks", Integer.toString(config.particleTracerIntervalTicks));
+                props.setProperty("particle_burst_type", NoFlyParticles.nameOf(config.particleBurstType));
+                props.setProperty("particle_hit_type", NoFlyParticles.nameOf(config.particleHitType));
+                props.setProperty("particle_tracer_type", NoFlyParticles.nameOf(config.particleTracerType));
+                props.setProperty("particle_refused_type", NoFlyParticles.nameOf(config.particleRefusedType));
                 props.setProperty("debug", Boolean.toString(config.debug));
                 props.store(out,
                     "No-Fly Zone settings.\n"
@@ -289,6 +397,30 @@ public final class NoFlyConfig {
                     + "                         carry riders through it.\n"
                     + "action_bar_messages:     tell players why their elytra stopped working.\n"
                     + "message_cooldown_ticks:  minimum ticks between messages to the same player.\n"
+                    + "\n"
+                    + "Particles. Spawned server-side, so everyone nearby sees them, not just the\n"
+                    + "player being stopped. The *_type settings take any simple particle id, e.g.\n"
+                    + "minecraft:explosion, minecraft:smoke, minecraft:crit, minecraft:flame,\n"
+                    + "minecraft:soul_fire_flame, minecraft:end_rod. Particles that need extra data\n"
+                    + "(block, dust, item) can't be named here and fall back to the default.\n"
+                    + "Any *_count of 0 turns that layer off on its own.\n"
+                    + "\n"
+                    + "particles_damage:        flak around a player taking damage-mode hits.\n"
+                    + "particle_burst_count:    airbursts per hit, scattered around the player (0-64).\n"
+                    + "particle_burst_type:     particle for those airbursts.\n"
+                    + "particle_hit_count:      particles in the puff on the player itself (0-64).\n"
+                    + "particle_hit_type:       particle for that puff.\n"
+                    + "particles_tracer:        a sparse trail behind a player being fired at. Off by\n"
+                    + "                         default: it is the busiest layer.\n"
+                    + "particle_tracer_count:   particles per tracer emission (0-32).\n"
+                    + "particle_tracer_type:    particle for tracers.\n"
+                    + "particle_tracer_interval_ticks:\n"
+                    + "                         ticks between tracer emissions (1-40).\n"
+                    + "particles_refused:       a quieter puff when flight is refused in the\n"
+                    + "                         non-damage modes.\n"
+                    + "particle_refused_count:  particles in that puff (0-64).\n"
+                    + "particle_refused_type:   particle for it.\n"
+                    + "\n"
                     + "debug:                   log zone registration and enforcement to the console."
                 );
             }
