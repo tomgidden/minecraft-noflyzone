@@ -85,6 +85,9 @@ public final class NoFlyConfig {
     public final boolean particlesDamage;
 
     /** When true, a sparse tracer trail follows a player being shot at. */
+    public final boolean particlesTrail;
+
+    /** When true, each damage hit draws a line of fire from the beacon to the player. */
     public final boolean particlesTracer;
 
     /** When true, refusals in the non-damage modes show a particle puff. */
@@ -97,18 +100,28 @@ public final class NoFlyConfig {
     public final int particleHitCount;
 
     /** Particles per tracer emission. */
-    public final int particleTracerCount;
+    public final int particleTrailCount;
 
     /** Particles in a non-damage refusal puff. */
     public final int particleRefusedCount;
 
     /** Ticks between tracer emissions; 1 is every tick. */
-    public final int particleTracerIntervalTicks;
+    public final int particleTrailIntervalTicks;
+
+    /** Blocks between particles along the beacon-to-player line. */
+    public final double particleTracerSpacing;
+
+    /** Hard cap on particles in one shot, whatever the distance. */
+    public final int particleTracerMaxCount;
+
+    /** How far particles stray from the true line, in blocks. */
+    public final double particleTracerJitter;
 
     public final SimpleParticleType particleBurstType;
     public final SimpleParticleType particleHitType;
-    public final SimpleParticleType particleTracerType;
+    public final SimpleParticleType particleTrailType;
     public final SimpleParticleType particleRefusedType;
+    public final SimpleParticleType particleTracerType;
 
     /** When true, the mod logs zone registration and enforcement diagnostics. */
     public final boolean debug;
@@ -116,11 +129,14 @@ public final class NoFlyConfig {
     private NoFlyConfig(NoFlyMode mode, int extraRadius, int requiredTier, int damageIntervalTicks,
                         boolean blockRiptide, boolean blockFireworkBoost, boolean blockHappyGhast,
                         boolean actionBarMessages, int messageCooldownTicks,
-                        boolean particlesDamage, boolean particlesTracer, boolean particlesRefused,
-                        int particleBurstCount, int particleHitCount, int particleTracerCount,
-                        int particleRefusedCount, int particleTracerIntervalTicks,
+                        boolean particlesDamage, boolean particlesTrail, boolean particlesRefused,
+                        boolean particlesTracer,
+                        int particleBurstCount, int particleHitCount, int particleTrailCount,
+                        int particleRefusedCount, int particleTrailIntervalTicks,
+                        double particleTracerSpacing, int particleTracerMaxCount, double particleTracerJitter,
                         SimpleParticleType particleBurstType, SimpleParticleType particleHitType,
-                        SimpleParticleType particleTracerType, SimpleParticleType particleRefusedType,
+                        SimpleParticleType particleTrailType, SimpleParticleType particleRefusedType,
+                        SimpleParticleType particleTracerType,
                         boolean debug) {
         this.mode = mode;
         this.extraRadius = extraRadius;
@@ -132,17 +148,22 @@ public final class NoFlyConfig {
         this.actionBarMessages = actionBarMessages;
         this.messageCooldownTicks = messageCooldownTicks;
         this.particlesDamage = particlesDamage;
-        this.particlesTracer = particlesTracer;
+        this.particlesTrail = particlesTrail;
         this.particlesRefused = particlesRefused;
+        this.particlesTracer = particlesTracer;
         this.particleBurstCount = particleBurstCount;
         this.particleHitCount = particleHitCount;
-        this.particleTracerCount = particleTracerCount;
+        this.particleTrailCount = particleTrailCount;
         this.particleRefusedCount = particleRefusedCount;
-        this.particleTracerIntervalTicks = particleTracerIntervalTicks;
+        this.particleTrailIntervalTicks = particleTrailIntervalTicks;
+        this.particleTracerSpacing = particleTracerSpacing;
+        this.particleTracerMaxCount = particleTracerMaxCount;
+        this.particleTracerJitter = particleTracerJitter;
         this.particleBurstType = particleBurstType;
         this.particleHitType = particleHitType;
-        this.particleTracerType = particleTracerType;
+        this.particleTrailType = particleTrailType;
         this.particleRefusedType = particleRefusedType;
+        this.particleTracerType = particleTracerType;
         this.debug = debug;
     }
 
@@ -161,13 +182,17 @@ public final class NoFlyConfig {
     // refusal puff. Tracers are off: they are the most expensive layer and the
     // most likely to be thought noisy, so they are opt-in.
     private static final boolean DEFAULT_PARTICLES_DAMAGE = true;
-    private static final boolean DEFAULT_PARTICLES_TRACER = false;
+    private static final boolean DEFAULT_PARTICLES_TRAIL = false;
     private static final boolean DEFAULT_PARTICLES_REFUSED = true;
     private static final int DEFAULT_PARTICLE_BURST_COUNT = 6;
     private static final int DEFAULT_PARTICLE_HIT_COUNT = 8;
-    private static final int DEFAULT_PARTICLE_TRACER_COUNT = 2;
+    private static final int DEFAULT_PARTICLE_TRAIL_COUNT = 2;
     private static final int DEFAULT_PARTICLE_REFUSED_COUNT = 8;
-    private static final int DEFAULT_PARTICLE_TRACER_INTERVAL_TICKS = 3;
+    private static final int DEFAULT_PARTICLE_TRAIL_INTERVAL_TICKS = 3;
+    private static final boolean DEFAULT_PARTICLES_TRACER = true;
+    private static final double DEFAULT_PARTICLE_TRACER_SPACING = 1.5;
+    private static final int DEFAULT_PARTICLE_TRACER_MAX_COUNT = 48;
+    private static final double DEFAULT_PARTICLE_TRACER_JITTER = 0.35;
 
     private static volatile NoFlyConfig instance;
 
@@ -201,11 +226,13 @@ public final class NoFlyConfig {
             current.damageIntervalTicks, current.blockRiptide, current.blockFireworkBoost,
             current.blockHappyGhast,
             current.actionBarMessages, current.messageCooldownTicks,
-            current.particlesDamage, current.particlesTracer, current.particlesRefused,
-            current.particleBurstCount, current.particleHitCount, current.particleTracerCount,
-            current.particleRefusedCount, current.particleTracerIntervalTicks,
-            current.particleBurstType, current.particleHitType, current.particleTracerType,
-            current.particleRefusedType,
+            current.particlesDamage, current.particlesTrail, current.particlesRefused,
+            current.particlesTracer,
+            current.particleBurstCount, current.particleHitCount, current.particleTrailCount,
+            current.particleRefusedCount, current.particleTrailIntervalTicks,
+            current.particleTracerSpacing, current.particleTracerMaxCount, current.particleTracerJitter,
+            current.particleBurstType, current.particleHitType, current.particleTrailType,
+            current.particleRefusedType, current.particleTracerType,
             current.debug);
         return write(configPath(), instance);
     }
@@ -241,27 +268,40 @@ public final class NoFlyConfig {
         int messageCooldownTicks = readInt(props, "message_cooldown_ticks", DEFAULT_MESSAGE_COOLDOWN_TICKS, 0, 1200);
 
         boolean particlesDamage = readBoolean(props, "particles_damage", DEFAULT_PARTICLES_DAMAGE);
-        boolean particlesTracer = readBoolean(props, "particles_tracer", DEFAULT_PARTICLES_TRACER);
+        boolean particlesTrail = readBoolean(props, "particles_trail", DEFAULT_PARTICLES_TRAIL);
         boolean particlesRefused = readBoolean(props, "particles_refused", DEFAULT_PARTICLES_REFUSED);
+        boolean particlesTracer = readBoolean(props, "particles_tracer", DEFAULT_PARTICLES_TRACER);
 
         // Upper bounds are deliberately modest. Each particle is a packet to
         // every client in range, so a hundred of them per hit per player is a
         // denial of service dressed as a setting.
         int particleBurstCount = readInt(props, "particle_burst_count", DEFAULT_PARTICLE_BURST_COUNT, 0, 64);
         int particleHitCount = readInt(props, "particle_hit_count", DEFAULT_PARTICLE_HIT_COUNT, 0, 64);
-        int particleTracerCount = readInt(props, "particle_tracer_count", DEFAULT_PARTICLE_TRACER_COUNT, 0, 32);
+        int particleTrailCount = readInt(props, "particle_trail_count", DEFAULT_PARTICLE_TRAIL_COUNT, 0, 32);
         int particleRefusedCount = readInt(props, "particle_refused_count", DEFAULT_PARTICLE_REFUSED_COUNT, 0, 64);
-        int particleTracerIntervalTicks = readInt(props, "particle_tracer_interval_ticks",
-            DEFAULT_PARTICLE_TRACER_INTERVAL_TICKS, 1, 40);
+        int particleTrailIntervalTicks = readInt(props, "particle_trail_interval_ticks",
+            DEFAULT_PARTICLE_TRAIL_INTERVAL_TICKS, 1, 40);
+
+        // Spacing has a floor: at 0 the step count would divide by zero, and
+        // anything under half a block is denser than the cap can usefully pay
+        // for over a long shot.
+        double particleTracerSpacing = readDouble(props, "particle_tracer_spacing",
+            DEFAULT_PARTICLE_TRACER_SPACING, 0.5, 16.0);
+        int particleTracerMaxCount = readInt(props, "particle_tracer_max_count",
+            DEFAULT_PARTICLE_TRACER_MAX_COUNT, 0, 256);
+        double particleTracerJitter = readDouble(props, "particle_tracer_jitter",
+            DEFAULT_PARTICLE_TRACER_JITTER, 0.0, 4.0);
 
         SimpleParticleType particleBurstType = NoFlyParticles.parseType(
             "particle_burst_type", props.getProperty("particle_burst_type"), NoFlyParticles.DEFAULT_BURST);
         SimpleParticleType particleHitType = NoFlyParticles.parseType(
             "particle_hit_type", props.getProperty("particle_hit_type"), NoFlyParticles.DEFAULT_HIT);
-        SimpleParticleType particleTracerType = NoFlyParticles.parseType(
-            "particle_tracer_type", props.getProperty("particle_tracer_type"), NoFlyParticles.DEFAULT_TRACER);
+        SimpleParticleType particleTrailType = NoFlyParticles.parseType(
+            "particle_trail_type", props.getProperty("particle_trail_type"), NoFlyParticles.DEFAULT_TRAIL);
         SimpleParticleType particleRefusedType = NoFlyParticles.parseType(
             "particle_refused_type", props.getProperty("particle_refused_type"), NoFlyParticles.DEFAULT_REFUSED);
+        SimpleParticleType particleTracerType = NoFlyParticles.parseType(
+            "particle_tracer_type", props.getProperty("particle_tracer_type"), NoFlyParticles.DEFAULT_TRACER);
 
         boolean debug = readBoolean(props, "debug", false);
 
@@ -269,10 +309,12 @@ public final class NoFlyConfig {
             mode, extraRadius, requiredTier, damageIntervalTicks, blockRiptide, blockFireworkBoost,
             blockHappyGhast,
             actionBarMessages, messageCooldownTicks,
-            particlesDamage, particlesTracer, particlesRefused,
-            particleBurstCount, particleHitCount, particleTracerCount, particleRefusedCount,
-            particleTracerIntervalTicks,
-            particleBurstType, particleHitType, particleTracerType, particleRefusedType,
+            particlesDamage, particlesTrail, particlesRefused, particlesTracer,
+            particleBurstCount, particleHitCount, particleTrailCount, particleRefusedCount,
+            particleTrailIntervalTicks,
+            particleTracerSpacing, particleTracerMaxCount, particleTracerJitter,
+            particleBurstType, particleHitType, particleTrailType, particleRefusedType,
+            particleTracerType,
             debug
         );
 
@@ -312,6 +354,28 @@ public final class NoFlyConfig {
             return clamped;
         } catch (NumberFormatException e) {
             NoFlyDebug.warn("config {}: '{}' is not a whole number, using {}", key, raw.trim(), fallback);
+            return fallback;
+        }
+    }
+
+    private static double readDouble(Properties props, String key, double fallback, double min, double max) {
+        String raw = props.getProperty(key);
+        if (raw == null) {
+            return fallback;
+        }
+        try {
+            double value = Double.parseDouble(raw.trim());
+            if (!Double.isFinite(value)) {
+                NoFlyDebug.warn("config {}: '{}' is not a finite number, using {}", key, raw.trim(), fallback);
+                return fallback;
+            }
+            double clamped = Math.max(min, Math.min(max, value));
+            if (clamped != value) {
+                NoFlyDebug.warn("config {}: {} is outside {}..{}, clamped to {}", key, value, min, max, clamped);
+            }
+            return clamped;
+        } catch (NumberFormatException e) {
+            NoFlyDebug.warn("config {}: '{}' is not a number, using {}", key, raw.trim(), fallback);
             return fallback;
         }
     }
@@ -359,17 +423,22 @@ public final class NoFlyConfig {
                 props.setProperty("action_bar_messages", Boolean.toString(config.actionBarMessages));
                 props.setProperty("message_cooldown_ticks", Integer.toString(config.messageCooldownTicks));
                 props.setProperty("particles_damage", Boolean.toString(config.particlesDamage));
-                props.setProperty("particles_tracer", Boolean.toString(config.particlesTracer));
+                props.setProperty("particles_trail", Boolean.toString(config.particlesTrail));
                 props.setProperty("particles_refused", Boolean.toString(config.particlesRefused));
+                props.setProperty("particles_tracer", Boolean.toString(config.particlesTracer));
                 props.setProperty("particle_burst_count", Integer.toString(config.particleBurstCount));
                 props.setProperty("particle_hit_count", Integer.toString(config.particleHitCount));
-                props.setProperty("particle_tracer_count", Integer.toString(config.particleTracerCount));
+                props.setProperty("particle_trail_count", Integer.toString(config.particleTrailCount));
                 props.setProperty("particle_refused_count", Integer.toString(config.particleRefusedCount));
-                props.setProperty("particle_tracer_interval_ticks", Integer.toString(config.particleTracerIntervalTicks));
+                props.setProperty("particle_trail_interval_ticks", Integer.toString(config.particleTrailIntervalTicks));
+                props.setProperty("particle_tracer_spacing", Double.toString(config.particleTracerSpacing));
+                props.setProperty("particle_tracer_max_count", Integer.toString(config.particleTracerMaxCount));
+                props.setProperty("particle_tracer_jitter", Double.toString(config.particleTracerJitter));
                 props.setProperty("particle_burst_type", NoFlyParticles.nameOf(config.particleBurstType));
                 props.setProperty("particle_hit_type", NoFlyParticles.nameOf(config.particleHitType));
-                props.setProperty("particle_tracer_type", NoFlyParticles.nameOf(config.particleTracerType));
+                props.setProperty("particle_trail_type", NoFlyParticles.nameOf(config.particleTrailType));
                 props.setProperty("particle_refused_type", NoFlyParticles.nameOf(config.particleRefusedType));
+                props.setProperty("particle_tracer_type", NoFlyParticles.nameOf(config.particleTracerType));
                 props.setProperty("debug", Boolean.toString(config.debug));
                 props.store(out,
                     "No-Fly Zone settings.\n"
@@ -410,12 +479,25 @@ public final class NoFlyConfig {
                     + "particle_burst_type:     particle for those airbursts.\n"
                     + "particle_hit_count:      particles in the puff on the player itself (0-64).\n"
                     + "particle_hit_type:       particle for that puff.\n"
-                    + "particles_tracer:        a sparse trail behind a player being fired at. Off by\n"
-                    + "                         default: it is the busiest layer.\n"
-                    + "particle_tracer_count:   particles per tracer emission (0-32).\n"
-                    + "particle_tracer_type:    particle for tracers.\n"
-                    + "particle_tracer_interval_ticks:\n"
-                    + "                         ticks between tracer emissions (1-40).\n"
+                    + "particles_tracer:        the round in flight: a line of particles from the\n"
+                    + "                         beacon up to the player on each hit, so the shot\n"
+                    + "                         visibly comes from the beacon.\n"
+                    + "particle_tracer_type:    particle for that line.\n"
+                    + "particle_tracer_spacing: blocks between particles along it (0.5-16). Lower is\n"
+                    + "                         denser; the count is derived from the distance, so a\n"
+                    + "                         near and a far shot look equally solid.\n"
+                    + "particle_tracer_max_count:\n"
+                    + "                         hard cap on particles in one shot (0-256), so a player\n"
+                    + "                         300 blocks up doesn't cost a huge packet burst.\n"
+                    + "particle_tracer_jitter:  how far particles stray from the true line (0-4), so it\n"
+                    + "                         reads as rounds rather than as a laser.\n"
+                    + "particles_trail:         a sparse wake behind the player marking where they have\n"
+                    + "                         been, like smoke off a damaged aircraft. Off by default:\n"
+                    + "                         it is the busiest layer.\n"
+                    + "particle_trail_count:    particles per emission (0-32).\n"
+                    + "particle_trail_type:     particle for the wake.\n"
+                    + "particle_trail_interval_ticks:\n"
+                    + "                         ticks between emissions (1-40).\n"
                     + "particles_refused:       a quieter puff when flight is refused in the\n"
                     + "                         non-damage modes.\n"
                     + "particle_refused_count:  particles in that puff (0-64).\n"

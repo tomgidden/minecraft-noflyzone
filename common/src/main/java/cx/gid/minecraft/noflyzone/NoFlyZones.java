@@ -169,6 +169,37 @@ public final class NoFlyZones {
     }
 
     /**
+     * The position of the beacon projecting an active zone the entity is in,
+     * or {@code null}.
+     *
+     * Where {@link #zoneContaining} hands back the volume, this hands back the
+     * source, because drawing a line from the thing doing the enforcing to the
+     * thing being enforced against needs to know where the enforcer is.
+     * See {@code NoFlyParticles.flakFrom}.
+     *
+     * <p>Same first-match-wins rule as {@link #zoneContaining}, and for the
+     * same reason: with overlapping zones any of the beacons is a defensible
+     * source for the shot, and the next tick re-evaluates anyway.
+     *
+     * <p>Deliberately does not run the expiry sweep, as {@link #zoneContaining}
+     * does not -- callers are already inside an enforcement path that has just
+     * swept.
+     */
+    public static BlockPos beaconContaining(Entity entity) {
+        Map<BlockPos, Zone> perLevel = ZONES.get(entity.level().dimension());
+        if (perLevel == null || perLevel.isEmpty()) {
+            return null;
+        }
+
+        for (Map.Entry<BlockPos, Zone> entry : perLevel.entrySet()) {
+            if (entry.getValue().bounds().contains(entity.getX(), entity.getY(), entity.getZ())) {
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
+
+    /**
      * Drops the zone projected by the beacon at {@code pos}, if any.
      *
      * Zones normally age out on their own once a beacon stops refreshing them,

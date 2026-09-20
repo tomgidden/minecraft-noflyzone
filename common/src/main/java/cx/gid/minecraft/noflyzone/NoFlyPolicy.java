@@ -146,7 +146,7 @@ public final class NoFlyPolicy {
                 applyDamage(player);
                 // Per-tick rather than per-hit: a trail only reads as tracking
                 // if it is continuous between hits. Rate-limited inside.
-                NoFlyParticles.tracer(player);
+                NoFlyParticles.trail(player);
             }
             case NO_GLIDE -> { /* handled in canGlide; nothing to do per-tick */ }
         }

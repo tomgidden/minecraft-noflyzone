@@ -55,19 +55,22 @@ public final class NoFlyParticles {
     /**
      * Fired when a player takes a damage-mode hit: flak.
      *
-     * <p>Three independent layers, each separately switchable, because they
+     * <p>Four independent layers, each separately switchable, because they
      * read very differently and taste varies:
      *
      * <ul>
+     *   <li><b>tracers</b> -- a line of particles from the beacon up to the
+     *       player: the round itself, visible in flight, so the shot comes
+     *       from somewhere. See {@link #tracerFrom}.</li>
      *   <li><b>airbursts</b> -- puffs at random points in a sphere around the
      *       player, like shells detonating nearby. This is the one that makes
      *       it look like anti-aircraft fire rather than like the player is on
      *       fire.</li>
      *   <li><b>hit puff</b> -- a small burst at the player themselves, tying
      *       the damage to the spectacle.</li>
-     *   <li><b>tracers</b> -- a sparse trail along the player's flight path,
-     *       as though rounds are tracking them. Spawned per-tick elsewhere;
-     *       see {@link #tracer}.</li>
+     *   <li><b>trail</b> -- a sparse wake along the player's own flight path,
+     *       marking where they have been. Spawned per-tick elsewhere; see
+     *       {@link #trail}.</li>
      * </ul>
      */
     public static void flak(ServerPlayer player) {
@@ -80,6 +83,10 @@ public final class NoFlyParticles {
         }
 
         Vec3 at = player.position();
+
+        if (config.particlesTracer) {
+            tracerFrom(level, player, config);
+        }
 
         if (config.particleBurstCount > 0) {
             ParticleOptions burst = config.particleBurstType;
@@ -108,23 +115,83 @@ public final class NoFlyParticles {
     }
 
     /**
-     * A sparse trail behind a player being fired at, spawned per tick.
+     * A tracer: a line of particles from the beacon up to the player, the round
+     * made visible in flight.
      *
-     * <p>Separate from {@link #flak} because it runs on a different cadence:
-     * flak fires on each damage hit (once a second by default), whereas tracers
-     * need to be continuous to read as tracking. Rate-limited by
-     * {@code particle_tracer_interval_ticks} so "continuous" does not mean
+     * <p>This is what makes the beacon legibly the thing doing the shooting.
+     * Without it the flak appears from nowhere and the player has to infer the
+     * source; with it, the cause is drawn in the sky.
+     *
+     * <p>Spacing is fixed and the count derived from the distance, rather than
+     * a fixed count stretched over whatever the range happens to be -- so a
+     * shot from 20 blocks and one from 200 have the same visual density rather
+     * than the far one being a dotted line. The cap then bounds the cost: a
+     * player 300 blocks up would otherwise be a thousand-particle packet burst
+     * every hit.
+     *
+     * <p>Fired on the damage cadence, not per tick. A continuous beam would
+     * read as a laser; discrete shots on the damage interval read as firing.
+     */
+    private static void tracerFrom(ServerLevel level, ServerPlayer player, NoFlyConfig config) {
+        var beacon = NoFlyZones.beaconContaining(player);
+        if (beacon == null) {
+            // In a zone whose beacon has just aged out, or steered out between
+            // the damage tick and now. The flak still fires; only the line
+            // showing where it came from is skipped.
+            return;
+        }
+
+        // From the top face of the beacon block rather than its centre, so the
+        // line starts where the beam visibly does.
+        Vec3 from = new Vec3(beacon.getX() + 0.5, beacon.getY() + 1.0, beacon.getZ() + 0.5);
+        Vec3 to = player.position().add(0.0, player.getBbHeight() * 0.5, 0.0);
+
+        Vec3 delta = to.subtract(from);
+        double distance = delta.length();
+        if (distance < 1.0e-3) {
+            return;
+        }
+
+        int steps = (int) Math.min(config.particleTracerMaxCount, distance / config.particleTracerSpacing);
+        if (steps <= 0) {
+            return;
+        }
+
+        Vec3 step = delta.scale(1.0 / steps);
+        for (int i = 1; i <= steps; i++) {
+            // Jittered off the true line so it reads as a burst of rounds
+            // rather than as a ruler-straight beam.
+            double jitter = config.particleTracerJitter;
+            double jx = (player.getRandom().nextDouble() - 0.5) * 2 * jitter;
+            double jy = (player.getRandom().nextDouble() - 0.5) * 2 * jitter;
+            double jz = (player.getRandom().nextDouble() - 0.5) * 2 * jitter;
+
+            Vec3 at = from.add(step.scale(i));
+            level.sendParticles(config.particleTracerType,
+                at.x + jx, at.y + jy, at.z + jz, 1, 0.0, 0.0, 0.0, 0.0);
+        }
+    }
+
+    /**
+     * A sparse wake behind the player, spawned per tick.
+     *
+     * <p>Distinct from the tracer, which is the shot arriving: this marks where
+     * the player has been, like smoke off a damaged aircraft. It runs on a
+     * different cadence for that reason -- flak and its tracer fire on each
+     * damage hit (once a second by default), whereas a wake only reads as one
+     * if it is close to continuous. Rate-limited by
+     * {@code particle_trail_interval_ticks} so "continuous" does not mean
      * twenty packets a second per player.
      */
-    public static void tracer(ServerPlayer player) {
+    public static void trail(ServerPlayer player) {
         NoFlyConfig config = NoFlyConfig.get();
-        if (!config.particlesTracer || config.particleTracerCount <= 0) {
+        if (!config.particlesTrail || config.particleTrailCount <= 0) {
             return;
         }
         if (!(player.level() instanceof ServerLevel level)) {
             return;
         }
-        if (player.level().getGameTime() % config.particleTracerIntervalTicks != 0) {
+        if (player.level().getGameTime() % config.particleTrailIntervalTicks != 0) {
             return;
         }
 
@@ -133,9 +200,9 @@ public final class NoFlyParticles {
         Vec3 motion = player.getDeltaMovement();
         Vec3 behind = at.subtract(motion.scale(4.0));
 
-        level.sendParticles(config.particleTracerType,
+        level.sendParticles(config.particleTrailType,
             behind.x, behind.y + player.getBbHeight() * 0.5, behind.z,
-            config.particleTracerCount, 0.4, 0.4, 0.4, 0.0);
+            config.particleTrailCount, 0.4, 0.4, 0.4, 0.0);
     }
 
     /**
@@ -213,6 +280,7 @@ public final class NoFlyParticles {
     /** Defaults, named here so the config and its documentation agree. */
     public static final SimpleParticleType DEFAULT_BURST = ParticleTypes.EXPLOSION;
     public static final SimpleParticleType DEFAULT_HIT = ParticleTypes.SMOKE;
-    public static final SimpleParticleType DEFAULT_TRACER = ParticleTypes.CRIT;
+    public static final SimpleParticleType DEFAULT_TRAIL = ParticleTypes.CRIT;
     public static final SimpleParticleType DEFAULT_REFUSED = ParticleTypes.CLOUD;
+    public static final SimpleParticleType DEFAULT_TRACER = ParticleTypes.FLAME;
 }
