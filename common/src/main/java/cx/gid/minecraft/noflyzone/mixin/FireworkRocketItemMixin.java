@@ -30,25 +30,25 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  */
 @Mixin(FireworkRocketItem.class)
 public abstract class FireworkRocketItemMixin {
-
-    @Inject(method = "use", at = @At("HEAD"), cancellable = true)
-    private void noflyzone$refuseBoostInZone(Level level, Player player, InteractionHand hand,
-                                             CallbackInfoReturnable<InteractionResult> cir) {
-        if (!NoFlyConfig.get().blockFireworkBoost) {
-            return;
-        }
-        // Not gliding means this is not a boost; vanilla will PASS anyway.
-        if (!player.isFallFlying()) {
-            return;
-        }
-        if (!NoFlyPolicy.shouldRefuse(player)) {
-            return;
-        }
-
-        NoFlyPolicy.notifyRefused((ServerPlayer)player, NoFlyMessages.BOOST_DENIED);
-
-        // PASS rather than FAIL: the rocket is not consumed and the hand is free
-        // to do something else, which is what vanilla does for a non-gliding use.
-        cir.setReturnValue(InteractionResult.PASS);
+  @Inject(method = "use", at = @At("HEAD"), cancellable = true)
+  private void noflyzone$refuseBoostInZone(Level level, Player player, InteractionHand hand,
+      CallbackInfoReturnable<InteractionResult> cir)
+  {
+    if (!NoFlyConfig.get().blockFireworkBoost) {
+      return;
     }
+    // Not gliding means this is not a boost; vanilla will PASS anyway.
+    if (!player.isFallFlying()) {
+      return;
+    }
+    if (!NoFlyPolicy.shouldRefuse(player)) {
+      return;
+    }
+
+    NoFlyPolicy.notifyRefused((ServerPlayer) player, NoFlyMessages.BOOST_DENIED);
+
+    // PASS rather than FAIL: the rocket is not consumed and the hand is free
+    // to do something else, which is what vanilla does for a non-gliding use.
+    cir.setReturnValue(InteractionResult.PASS);
+  }
 }

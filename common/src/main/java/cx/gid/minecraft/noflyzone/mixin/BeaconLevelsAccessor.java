@@ -18,7 +18,6 @@ import org.spongepowered.asm.mixin.gen.Accessor;
  */
 @Mixin(BeaconBlockEntity.class)
 public interface BeaconLevelsAccessor {
-
-    @Accessor("levels")
-    int noflyzone$getLevels();
+  @Accessor("levels")
+  int noflyzone$getLevels();
 }

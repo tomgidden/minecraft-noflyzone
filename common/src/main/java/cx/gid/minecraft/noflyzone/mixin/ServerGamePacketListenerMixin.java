@@ -43,38 +43,37 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(ServerGamePacketListenerImpl.class)
 public abstract class ServerGamePacketListenerMixin {
+  @Shadow
+  public ServerPlayer player;
 
-    @Shadow
-    public ServerPlayer player;
-
-
-    @Inject(method = "handleMoveVehicle", at = @At("HEAD"), cancellable = true)
-    private void noflyzone$refuseInwardVehicleMove(ServerboundMoveVehiclePacket packet, CallbackInfo ci) {
-        Entity vehicle = this.player.getRootVehicle();
-        if (vehicle == null || vehicle == this.player) {
-            return;
-        }
-
-        if (!NoFlyPolicy.refusesVehicleMove(vehicle, packet.movingTo().position())) {
-            return;
-        }
-
-        // Cancelling alone is not enough. The client is authoritative for a
-        // ridden vehicle and will happily keep predicting forward, flying a
-        // ghost the server never agreed to -- and then snapping violently back
-        // the moment anything forces a resync, such as dismounting.
-        //
-        // So do what vanilla does when it rejects a move: pin the entity at the
-        // position the server still believes in, and tell the client. The
-        // correction arrives every tick the player pushes inward, which is what
-        // makes the boundary feel like a wall rather than like lag.
-        vehicle.absSnapTo(vehicle.getX(), vehicle.getY(), vehicle.getZ(),
-            vehicle.getYRot(), vehicle.getXRot());
-        // Sent via player.connection rather than a @Shadow of send(): that
-        // method is declared on ServerCommonPacketListenerImpl, and @Shadow only
-        // resolves members declared on the target class itself.
-        this.player.connection.send(ClientboundMoveVehiclePacket.fromEntity(vehicle));
-
-        ci.cancel();
+  @Inject(method = "handleMoveVehicle", at = @At("HEAD"), cancellable = true)
+  private void noflyzone$refuseInwardVehicleMove(ServerboundMoveVehiclePacket packet, CallbackInfo ci)
+  {
+    Entity vehicle = this.player.getRootVehicle();
+    if (vehicle == null || vehicle == this.player) {
+      return;
     }
+
+    if (!NoFlyPolicy.refusesVehicleMove(vehicle, packet.movingTo().position())) {
+      return;
+    }
+
+    // Cancelling alone is not enough. The client is authoritative for a
+    // ridden vehicle and will happily keep predicting forward, flying a
+    // ghost the server never agreed to -- and then snapping violently back
+    // the moment anything forces a resync, such as dismounting.
+    //
+    // So do what vanilla does when it rejects a move: pin the entity at the
+    // position the server still believes in, and tell the client. The
+    // correction arrives every tick the player pushes inward, which is what
+    // makes the boundary feel like a wall rather than like lag.
+    vehicle.absSnapTo(vehicle.getX(), vehicle.getY(), vehicle.getZ(),
+        vehicle.getYRot(), vehicle.getXRot());
+    // Sent via player.connection rather than a @Shadow of send(): that
+    // method is declared on ServerCommonPacketListenerImpl, and @Shadow only
+    // resolves members declared on the target class itself.
+    this.player.connection.send(ClientboundMoveVehiclePacket.fromEntity(vehicle));
+
+    ci.cancel();
+  }
 }

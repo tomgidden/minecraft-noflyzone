@@ -1,11 +1,10 @@
 package cx.gid.minecraft.noflyzone;
 
-import net.minecraft.server.level.ServerPlayer;
-
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
+import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Tells modded clients when they enter or leave a no-fly zone, so they can show
@@ -22,67 +21,80 @@ import java.util.function.BiConsumer;
  * reasonable to run this from the server tick.
  */
 public final class ZoneStateNotifier {
+  /**
+   * Players currently believed to be inside a zone.
+   */
+  private static final Set<UUID> IN_ZONE = ConcurrentHashMap.newKeySet();
 
-    /** Players currently believed to be inside a zone. */
-    private static final Set<UUID> IN_ZONE = ConcurrentHashMap.newKeySet();
+  /**
+   * How the payload actually gets sent. Supplied per loader, since Fabric and
+   * NeoForge have incompatible send APIs and there is no common one without
+   * pulling in a cross-platform layer.
+   */
+  private static volatile BiConsumer<ServerPlayer, Boolean> sender;
 
-    /**
-     * How the payload actually gets sent. Supplied per loader, since Fabric and
-     * NeoForge have incompatible send APIs and there is no common one without
-     * pulling in a cross-platform layer.
-     */
-    private static volatile BiConsumer<ServerPlayer, Boolean> sender;
+  private ZoneStateNotifier() {}
 
-    private ZoneStateNotifier() {}
+  /**
+   * Installs the loader-specific send function. Called from each entrypoint.
+   */
+  public static void setSender(BiConsumer<ServerPlayer, Boolean> value)
+  {
+    sender = value;
+  }
 
-    /** Installs the loader-specific send function. Called from each entrypoint. */
-    public static void setSender(BiConsumer<ServerPlayer, Boolean> value) {
-        sender = value;
+  /**
+   * Re-evaluates a player's zone membership and notifies on a change.
+   *
+   * Cheap enough for the server tick: {@link NoFlyZones#isInZone} is a handful
+   * of AABB tests against a small map, and nothing is sent unless the answer
+   * differs from last tick.
+   */
+  public static void update(ServerPlayer player)
+  {
+    boolean nowInZone = NoFlyZones.isInZone(player);
+    UUID id           = player.getUUID();
+    boolean wasInZone = IN_ZONE.contains(id);
+
+    if (nowInZone == wasInZone) {
+      return;
     }
 
-    /**
-     * Re-evaluates a player's zone membership and notifies on a change.
-     *
-     * Cheap enough for the server tick: {@link NoFlyZones#isInZone} is a handful
-     * of AABB tests against a small map, and nothing is sent unless the answer
-     * differs from last tick.
-     */
-    public static void update(ServerPlayer player) {
-        boolean nowInZone = NoFlyZones.isInZone(player);
-        UUID id = player.getUUID();
-        boolean wasInZone = IN_ZONE.contains(id);
-
-        if (nowInZone == wasInZone) {
-            return;
-        }
-
-        if (nowInZone) {
-            IN_ZONE.add(id);
-        } else {
-            IN_ZONE.remove(id);
-        }
-
-        BiConsumer<ServerPlayer, Boolean> local = sender;
-        if (local == null) {
-            return;
-        }
-        try {
-            local.accept(player, nowInZone);
-        } catch (Exception e) {
-            // A player mid-disconnect can make the send throw. The icon is
-            // cosmetic, so failing to update it must never propagate.
-            NoFlyDebug.warn("failed to send zone state to {}: {}",
-                player.getGameProfile().name(), e.toString());
-        }
+    if (nowInZone) {
+      IN_ZONE.add(id);
+    }
+    else {
+      IN_ZONE.remove(id);
     }
 
-    /** Forgets a player on disconnect. */
-    public static void forget(ServerPlayer player) {
-        IN_ZONE.remove(player.getUUID());
+    BiConsumer<ServerPlayer, Boolean> local = sender;
+    if (local == null) {
+      return;
     }
+    try {
+      local.accept(player, nowInZone);
+    }
+    catch (Exception e) {
+      // A player mid-disconnect can make the send throw. The icon is
+      // cosmetic, so failing to update it must never propagate.
+      NoFlyDebug.warn("failed to send zone state to {}: {}",
+          player.getGameProfile().name(), e.toString());
+    }
+  }
 
-    /** Forgets every tracked player. */
-    public static void forgetAll() {
-        IN_ZONE.clear();
-    }
+  /**
+   * Forgets a player on disconnect.
+   */
+  public static void forget(ServerPlayer player)
+  {
+    IN_ZONE.remove(player.getUUID());
+  }
+
+  /**
+   * Forgets every tracked player.
+   */
+  public static void forgetAll()
+  {
+    IN_ZONE.clear();
+  }
 }

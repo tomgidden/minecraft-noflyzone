@@ -18,30 +18,33 @@ import net.neoforged.neoforge.client.network.ClientPacketDistributor;
  */
 @EventBusSubscriber(modid = Constants.MOD_ID, value = Dist.CLIENT)
 public final class NoFlyZoneNeoForgeClient {
+  private NoFlyZoneNeoForgeClient() {}
 
-    private NoFlyZoneNeoForgeClient() {}
+  @SubscribeEvent
+  public static void onClientSetup(FMLClientSetupEvent event)
+  {
+    event.enqueueWork(() -> {
+      // Registered in the client's own registry only; the id never crosses
+      // the network. See ClientNoFlyEffect.
+      ClientNoFly.register();
+      ClientNoFly.installBeaconButton();
 
-    @SubscribeEvent
-    public static void onClientSetup(FMLClientSetupEvent event) {
-        event.enqueueWork(() -> {
-            // Registered in the client's own registry only; the id never crosses
-            // the network. See ClientNoFlyEffect.
-            ClientNoFly.register();
-            ClientNoFly.installBeaconButton();
+      // Explicit lambda rather than a method reference: sendToServer is
+      // varargs, which makes the reference ambiguous.
+      ClientPayloadSender.setSender(payload -> ClientPacketDistributor.sendToServer(payload));
+    });
 
-            // Explicit lambda rather than a method reference: sendToServer is
-            // varargs, which makes the reference ambiguous.
-            ClientPayloadSender.setSender(payload -> ClientPacketDistributor.sendToServer(payload));
-        });
+    Constants.LOGGER.info("{} (NeoForge client) initialized", Constants.MOD_NAME);
+  }
 
-        Constants.LOGGER.info("{} (NeoForge client) initialized", Constants.MOD_NAME);
+  /**
+   * Applies or clears the local icon effect in response to a server update.
+   */
+  public static void handleInZone(boolean inZone)
+  {
+    Minecraft minecraft = Minecraft.getInstance();
+    if (minecraft.player != null) {
+      ClientNoFly.setInZone(minecraft.player, inZone);
     }
-
-    /** Applies or clears the local icon effect in response to a server update. */
-    public static void handleInZone(boolean inZone) {
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.player != null) {
-            ClientNoFly.setInZone(minecraft.player, inZone);
-        }
-    }
+  }
 }

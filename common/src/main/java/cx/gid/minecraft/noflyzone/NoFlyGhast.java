@@ -18,12 +18,16 @@ import net.minecraft.world.entity.animal.happyghast.HappyGhast;
  * here for the same reason.
  */
 public interface NoFlyGhast {
+  /**
+   * True if the mod is currently steering this ghast out of a zone.
+   */
+  boolean noflyzone$isFleeing();
 
-    /** True if the mod is currently steering this ghast out of a zone. */
-    boolean noflyzone$isFleeing();
-
-    /** Convenience for callers holding a plain {@code HappyGhast}. */
-    static boolean isFleeing(HappyGhast ghast) {
-        return ghast instanceof NoFlyGhast flagged && flagged.noflyzone$isFleeing();
-    }
+  /**
+   * Convenience for callers holding a plain {@code HappyGhast}.
+   */
+  static boolean isFleeing(HappyGhast ghast)
+  {
+    return ghast instanceof NoFlyGhast flagged && flagged.noflyzone$isFleeing();
+  }
 }

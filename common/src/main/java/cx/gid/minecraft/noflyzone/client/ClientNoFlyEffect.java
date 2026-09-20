@@ -15,10 +15,10 @@ import net.minecraft.world.effect.MobEffectCategory;
  * button to draw and the HUD an icon to show.
  */
 public class ClientNoFlyEffect extends MobEffect {
+  private static final int COLOUR = 0x494949;
 
-    private static final int COLOUR = 0x494949;
-
-    public ClientNoFlyEffect() {
-        super(MobEffectCategory.NEUTRAL, COLOUR);
-    }
+  public ClientNoFlyEffect()
+  {
+    super(MobEffectCategory.NEUTRAL, COLOUR);
+  }
 }

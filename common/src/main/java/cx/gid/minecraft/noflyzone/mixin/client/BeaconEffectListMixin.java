@@ -1,5 +1,6 @@
 package cx.gid.minecraft.noflyzone.mixin.client;
 
+import java.util.List;
 import net.minecraft.core.Holder;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.level.block.entity.BeaconBlockEntity;
@@ -7,8 +8,6 @@ import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.gen.Accessor;
-
-import java.util.List;
 
 /**
  * Read/write access to {@code BeaconBlockEntity.BEACON_EFFECTS}, the list the
@@ -38,14 +37,17 @@ import java.util.List;
  */
 @Mixin(BeaconBlockEntity.class)
 public interface BeaconEffectListMixin {
+  @Accessor("BEACON_EFFECTS")
+  static List<List<Holder<MobEffect>>> noflyzone$getBeaconEffects()
+  {
+    throw new AssertionError("mixin accessor not applied");
+  }
 
-    @Accessor("BEACON_EFFECTS")
-    static List<List<Holder<MobEffect>>> noflyzone$getBeaconEffects() {
-        throw new AssertionError("mixin accessor not applied");
-    }
-
-    @Accessor("BEACON_EFFECTS") @Mutable @Final
-    static void noflyzone$setBeaconEffects(List<List<Holder<MobEffect>>> value) {
-        throw new AssertionError("mixin accessor not applied");
-    }
+  @Accessor("BEACON_EFFECTS")
+  @Mutable
+  @Final
+  static void noflyzone$setBeaconEffects(List<List<Holder<MobEffect>>> value)
+  {
+    throw new AssertionError("mixin accessor not applied");
+  }
 }

@@ -24,24 +24,24 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityGlideTickMixin {
+  @Inject(method = "updateFallFlying", at = @At("TAIL"))
+  private void noflyzone$enforceInFlight(CallbackInfo ci)
+  {
+    LivingEntity self = (LivingEntity) (Object) this;
 
-    @Inject(method = "updateFallFlying", at = @At("TAIL"))
-    private void noflyzone$enforceInFlight(CallbackInfo ci) {
-        LivingEntity self = (LivingEntity)(Object)this;
-
-        if (!NoFlyPolicy.shouldRefuse(self)) {
-            return;
-        }
-
-        ServerPlayer player = (ServerPlayer)self;
-
-        // Only act on a player actually gliding: canGlide is consulted for
-        // anyone merely holding an elytra, and this hook can be reached in the
-        // tick where the flag has just been cleared.
-        if (!player.isFallFlying()) {
-            return;
-        }
-
-        NoFlyPolicy.applyInFlightEffects(player);
+    if (!NoFlyPolicy.shouldRefuse(self)) {
+      return;
     }
+
+    ServerPlayer player = (ServerPlayer) self;
+
+    // Only act on a player actually gliding: canGlide is consulted for
+    // anyone merely holding an elytra, and this hook can be reached in the
+    // tick where the flag has just been cleared.
+    if (!player.isFallFlying()) {
+      return;
+    }
+
+    NoFlyPolicy.applyInFlightEffects(player);
+  }
 }

@@ -31,18 +31,21 @@ import net.minecraft.world.entity.monster.Ghast;
  * class is shared with hostile ghasts, and this concerns only happy ones.
  */
 public class NoFlyGhastMoveControl extends Ghast.GhastMoveControl<HappyGhast> {
+  private final HappyGhast ghast;
 
-    private final HappyGhast ghast;
+  public NoFlyGhastMoveControl(HappyGhast ghast)
+  {
+    // The supplier cannot reference `this` before super() completes, so it
+    // closes over the ghast and re-reads the flag on each call instead.
+    super(ghast, true, () -> ghast.isOnStillTimeout() && !NoFlyGhast.isFleeing(ghast));
+    this.ghast = ghast;
+  }
 
-    public NoFlyGhastMoveControl(HappyGhast ghast) {
-        // The supplier cannot reference `this` before super() completes, so it
-        // closes over the ghast and re-reads the flag on each call instead.
-        super(ghast, true, () -> ghast.isOnStillTimeout() && !NoFlyGhast.isFleeing(ghast));
-        this.ghast = ghast;
-    }
-
-    /** The ghast this control belongs to. */
-    public HappyGhast ghast() {
-        return this.ghast;
-    }
+  /**
+   * The ghast this control belongs to.
+   */
+  public HappyGhast ghast()
+  {
+    return this.ghast;
+  }
 }

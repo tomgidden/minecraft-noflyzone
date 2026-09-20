@@ -17,7 +17,6 @@ import org.spongepowered.asm.mixin.gen.Accessor;
  */
 @Mixin(BeaconMenu.class)
 public interface BeaconMenuAccessor {
-
-    @Accessor("access")
-    ContainerLevelAccess noflyzone$getAccess();
+  @Accessor("access")
+  ContainerLevelAccess noflyzone$getAccess();
 }

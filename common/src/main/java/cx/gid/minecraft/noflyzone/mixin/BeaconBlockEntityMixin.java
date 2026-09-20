@@ -37,57 +37,65 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(BeaconBlockEntity.class)
 public abstract class BeaconBlockEntityMixin implements NoFlyBeacon {
+  @Unique
+  private boolean noflyzone$noFly;
 
-    @Unique
-    private boolean noflyzone$noFly;
+  @Override
+  public boolean noflyzone$isNoFlyBeacon()
+  {
+    return this.noflyzone$noFly;
+  }
 
-    @Override
-    public boolean noflyzone$isNoFlyBeacon() {
-        return this.noflyzone$noFly;
+  @Override
+  public void noflyzone$setNoFlyBeacon(boolean value)
+  {
+    this.noflyzone$noFly = value;
+  }
+
+  /**
+   * Persists the flag. Only written when set, to keep vanilla beacons' NBT clean.
+   */
+  @Inject(method = "saveAdditional", at = @At("TAIL"))
+  private void noflyzone$save(ValueOutput output, CallbackInfo ci)
+  {
+    if (this.noflyzone$noFly) {
+      output.putBoolean(TAG_NO_FLY, true);
+    }
+  }
+
+  /**
+   * Restores the flag on world load.
+   */
+  @Inject(method = "loadAdditional", at = @At("TAIL"))
+  private void noflyzone$load(ValueInput input, CallbackInfo ci)
+  {
+    this.noflyzone$noFly = input.getBooleanOr(TAG_NO_FLY, false);
+  }
+
+  /**
+   * Publishes the zone, and cancels the beacon's normal effect application.
+   *
+   * {@code applyEffects} is static, so the flag has to be read from the block
+   * entity at {@code worldPosition} rather than from {@code this}. That lookup
+   * is cheap -- the block entity is loaded by definition, since it is mid-tick
+   * -- and it runs only every 80 ticks, on vanilla's own beacon cadence.
+   */
+  @Inject(method = "applyEffects", at = @At("HEAD"), cancellable = true)
+  private static void noflyzone$projectZone(Level level, BlockPos worldPosition, int levels,
+      Holder<MobEffect> primaryPower, Holder<MobEffect> secondaryPower,
+      CallbackInfo ci)
+  {
+    if (level.isClientSide()) {
+      return;
+    }
+    if (!(level.getBlockEntity(worldPosition) instanceof NoFlyBeacon beacon) || !beacon.noflyzone$isNoFlyBeacon()) {
+      return;
     }
 
-    @Override
-    public void noflyzone$setNoFlyBeacon(boolean value) {
-        this.noflyzone$noFly = value;
-    }
+    NoFlyZones.refresh(level, worldPosition, levels);
 
-    /** Persists the flag. Only written when set, to keep vanilla beacons' NBT clean. */
-    @Inject(method = "saveAdditional", at = @At("TAIL"))
-    private void noflyzone$save(ValueOutput output, CallbackInfo ci) {
-        if (this.noflyzone$noFly) {
-            output.putBoolean(TAG_NO_FLY, true);
-        }
-    }
-
-    /** Restores the flag on world load. */
-    @Inject(method = "loadAdditional", at = @At("TAIL"))
-    private void noflyzone$load(ValueInput input, CallbackInfo ci) {
-        this.noflyzone$noFly = input.getBooleanOr(TAG_NO_FLY, false);
-    }
-
-    /**
-     * Publishes the zone, and cancels the beacon's normal effect application.
-     *
-     * {@code applyEffects} is static, so the flag has to be read from the block
-     * entity at {@code worldPosition} rather than from {@code this}. That lookup
-     * is cheap -- the block entity is loaded by definition, since it is mid-tick
-     * -- and it runs only every 80 ticks, on vanilla's own beacon cadence.
-     */
-    @Inject(method = "applyEffects", at = @At("HEAD"), cancellable = true)
-    private static void noflyzone$projectZone(Level level, BlockPos worldPosition, int levels,
-                                              Holder<MobEffect> primaryPower, Holder<MobEffect> secondaryPower,
-                                              CallbackInfo ci) {
-        if (level.isClientSide()) {
-            return;
-        }
-        if (!(level.getBlockEntity(worldPosition) instanceof NoFlyBeacon beacon) || !beacon.noflyzone$isNoFlyBeacon()) {
-            return;
-        }
-
-        NoFlyZones.refresh(level, worldPosition, levels);
-
-        // Cancel so a no-fly beacon grants no potion effect. Whatever the player
-        // selected in the beacon screen is simply not applied while the zone is up.
-        ci.cancel();
-    }
+    // Cancel so a no-fly beacon grants no potion effect. Whatever the player
+    // selected in the beacon screen is simply not applied while the zone is up.
+    ci.cancel();
+  }
 }

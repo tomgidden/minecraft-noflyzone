@@ -30,13 +30,18 @@ package cx.gid.minecraft.noflyzone;
  * @see cx.gid.minecraft.noflyzone.mixin.BeaconBlockEntityMixin
  */
 public interface NoFlyBeacon {
+  /**
+   * NBT key the flag is stored under. Namespaced to avoid colliding with vanilla.
+   */
+  String TAG_NO_FLY = "noflyzone:no_fly";
 
-    /** NBT key the flag is stored under. Namespaced to avoid colliding with vanilla. */
-    String TAG_NO_FLY = "noflyzone:no_fly";
+  /**
+   * True if this beacon projects a no-fly zone.
+   */
+  boolean noflyzone$isNoFlyBeacon();
 
-    /** True if this beacon projects a no-fly zone. */
-    boolean noflyzone$isNoFlyBeacon();
-
-    /** Marks (or unmarks) this beacon as projecting a no-fly zone. */
-    void noflyzone$setNoFlyBeacon(boolean value);
+  /**
+   * Marks (or unmarks) this beacon as projecting a no-fly zone.
+   */
+  void noflyzone$setNoFlyBeacon(boolean value);
 }

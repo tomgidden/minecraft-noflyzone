@@ -20,7 +20,6 @@ import org.spongepowered.asm.mixin.gen.Accessor;
  */
 @Mixin(Mob.class)
 public interface MobAccessor {
-
-    @Accessor("moveControl")
-    void noflyzone$setMoveControl(MoveControl value);
+  @Accessor("moveControl")
+  void noflyzone$setMoveControl(MoveControl value);
 }

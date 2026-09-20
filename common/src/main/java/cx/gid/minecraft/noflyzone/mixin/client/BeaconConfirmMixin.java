@@ -32,36 +32,37 @@ import org.spongepowered.asm.mixin.injection.Redirect;
  */
 @Mixin(targets = "net.minecraft.client.gui.screens.inventory.BeaconScreen$BeaconConfirmButton")
 public abstract class BeaconConfirmMixin {
-
-    @Redirect(
-        method = "onPress",
-        at = @At(
-            value = "INVOKE",
-            target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;send(Lnet/minecraft/network/protocol/Packet;)V"
-        )
-    )
-    private void noflyzone$sendZoneInstead(ClientPacketListener connection, Packet<?> packet) {
-        if (packet instanceof ServerboundSetBeaconPacket beaconPacket && noflyzone$wantsNoFly(beaconPacket)) {
-            ClientPayloadSender.send(new ModPayloads.SetZonePayload(true));
-            return;
-        }
-        connection.send(packet);
+  @Redirect(
+      method = "onPress",
+      at     = @At(
+          value  = "INVOKE",
+          target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;send(Lnet/minecraft/network/protocol/Packet;)V"))
+  private void
+  noflyzone$sendZoneInstead(ClientPacketListener connection, Packet<?> packet)
+  {
+    if (packet instanceof ServerboundSetBeaconPacket beaconPacket && noflyzone$wantsNoFly(beaconPacket)) {
+      ClientPayloadSender.send(new ModPayloads.SetZonePayload(true));
+      return;
     }
+    connection.send(packet);
+  }
 
-    /**
-     * True if the outgoing selection asks for a no-fly zone.
-     *
-     * Reads the packet rather than the screen's fields, so this needs no access
-     * to the outer class. Either slot counts: No-Fly sits in the tier-4 row, so
-     * the screen offers it as a secondary alongside a primary of the player's
-     * choosing.
-     */
-    private static boolean noflyzone$wantsNoFly(ServerboundSetBeaconPacket packet) {
-        return noflyzone$isNoFly(packet.primary().orElse(null))
-            || noflyzone$isNoFly(packet.secondary().orElse(null));
-    }
+  /**
+   * True if the outgoing selection asks for a no-fly zone.
+   *
+   * Reads the packet rather than the screen's fields, so this needs no access
+   * to the outer class. Either slot counts: No-Fly sits in the tier-4 row, so
+   * the screen offers it as a secondary alongside a primary of the player's
+   * choosing.
+   */
+  private static boolean noflyzone$wantsNoFly(ServerboundSetBeaconPacket packet)
+  {
+    return noflyzone$isNoFly(packet.primary().orElse(null))
+        || noflyzone$isNoFly(packet.secondary().orElse(null));
+  }
 
-    private static boolean noflyzone$isNoFly(Holder<MobEffect> holder) {
-        return ClientNoFly.isNoFly(holder);
-    }
+  private static boolean noflyzone$isNoFly(Holder<MobEffect> holder)
+  {
+    return ClientNoFly.isNoFly(holder);
+  }
 }

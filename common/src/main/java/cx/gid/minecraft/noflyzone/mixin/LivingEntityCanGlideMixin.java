@@ -50,41 +50,41 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  */
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityCanGlideMixin {
+  @Inject(method = "canGlide", at = @At("HEAD"), cancellable = true)
+  private void noflyzone$refuseGlideInZone(CallbackInfoReturnable<Boolean> cir)
+  {
+    LivingEntity self = (LivingEntity) (Object) this;
 
-    @Inject(method = "canGlide", at = @At("HEAD"), cancellable = true)
-    private void noflyzone$refuseGlideInZone(CallbackInfoReturnable<Boolean> cir) {
-        LivingEntity self = (LivingEntity)(Object)this;
-
-        // shouldRefuse already filters to server-side ServerPlayers, so this
-        // stays a single cheap call on a hot path.
-        if (!NoFlyPolicy.shouldRefuse(self)) {
-            return;
-        }
-
-        ServerPlayer player = (ServerPlayer)self;
-        NoFlyMode mode = NoFlyPolicy.mode();
-
-        // DAMAGE leaves flight alone entirely; the player is punished, not grounded.
-        if (mode == NoFlyMode.DAMAGE) {
-            return;
-        }
-
-        // canGlide is polled for players who merely own an elytra, not only for
-        // those actually flying, so the two cases are distinguished for the
-        // message. notifyRefused applies its own cooldown, so a player
-        // repeatedly retrying inside a zone is not spammed.
-        boolean flying = player.isFallFlying();
-
-        if (mode == NoFlyMode.ZERO_MOMENTUM && flying) {
-            // Deliberately permitted: cutting the glide here is exactly what this
-            // mode exists to avoid. The player is slowed to a stop and descends,
-            // which LivingEntityGlideTickMixin takes care of.
-            return;
-        }
-
-        NoFlyPolicy.notifyRefused(player,
-            flying ? NoFlyMessages.GLIDE_CUT : NoFlyMessages.TAKEOFF_DENIED);
-
-        cir.setReturnValue(false);
+    // shouldRefuse already filters to server-side ServerPlayers, so this
+    // stays a single cheap call on a hot path.
+    if (!NoFlyPolicy.shouldRefuse(self)) {
+      return;
     }
+
+    ServerPlayer player = (ServerPlayer) self;
+    NoFlyMode mode      = NoFlyPolicy.mode();
+
+    // DAMAGE leaves flight alone entirely; the player is punished, not grounded.
+    if (mode == NoFlyMode.DAMAGE) {
+      return;
+    }
+
+    // canGlide is polled for players who merely own an elytra, not only for
+    // those actually flying, so the two cases are distinguished for the
+    // message. notifyRefused applies its own cooldown, so a player
+    // repeatedly retrying inside a zone is not spammed.
+    boolean flying = player.isFallFlying();
+
+    if (mode == NoFlyMode.ZERO_MOMENTUM && flying) {
+      // Deliberately permitted: cutting the glide here is exactly what this
+      // mode exists to avoid. The player is slowed to a stop and descends,
+      // which LivingEntityGlideTickMixin takes care of.
+      return;
+    }
+
+    NoFlyPolicy.notifyRefused(player,
+        flying ? NoFlyMessages.GLIDE_CUT : NoFlyMessages.TAKEOFF_DENIED);
+
+    cir.setReturnValue(false);
+  }
 }
