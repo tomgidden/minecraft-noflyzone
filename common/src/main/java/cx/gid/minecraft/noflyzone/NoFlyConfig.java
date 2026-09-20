@@ -221,20 +221,55 @@ public final class NoFlyConfig {
      * @return true if the change was written to disk
      */
     public static synchronized boolean setMode(NoFlyMode mode) {
-        NoFlyConfig current = get();
-        instance = new NoFlyConfig(mode, current.extraRadius, current.requiredTier,
-            current.damageIntervalTicks, current.blockRiptide, current.blockFireworkBoost,
-            current.blockHappyGhast,
-            current.actionBarMessages, current.messageCooldownTicks,
-            current.particlesDamage, current.particlesTrail, current.particlesRefused,
-            current.particlesTracer,
-            current.particleBurstCount, current.particleHitCount, current.particleTrailCount,
-            current.particleRefusedCount, current.particleTrailIntervalTicks,
-            current.particleTracerSpacing, current.particleTracerMaxCount, current.particleTracerJitter,
-            current.particleBurstType, current.particleHitType, current.particleTrailType,
-            current.particleRefusedType, current.particleTracerType,
-            current.debug);
+        instance = get().withMode(mode);
         return write(configPath(), instance);
+    }
+
+    /**
+     * A copy of this config with a different mode.
+     *
+     * <p>Exists so {@link #setMode} is not a twenty-odd argument constructor
+     * call that has to be revisited, and silently gets wrong, every time a
+     * setting is added. Everything else is carried across unchanged.
+     */
+    private NoFlyConfig withMode(NoFlyMode newMode) {
+        return new NoFlyConfig(newMode, extraRadius, requiredTier,
+            damageIntervalTicks, blockRiptide, blockFireworkBoost, blockHappyGhast,
+            actionBarMessages, messageCooldownTicks,
+            particlesDamage, particlesTrail, particlesRefused, particlesTracer,
+            particleBurstCount, particleHitCount, particleTrailCount,
+            particleRefusedCount, particleTrailIntervalTicks,
+            particleTracerSpacing, particleTracerMaxCount, particleTracerJitter,
+            particleBurstType, particleHitType, particleTrailType,
+            particleRefusedType, particleTracerType,
+            debug);
+    }
+
+    /**
+     * Re-reads the config file, replacing the live settings.
+     *
+     * <p>Most settings are consulted through {@link #get()} at the moment they
+     * are used, so a reload takes effect immediately -- which is the point:
+     * tuning particle counts by editing a file and restarting the server is
+     * tedious enough that nobody does it.
+     *
+     * <p>Two settings are exceptions worth knowing about. {@code extra_radius}
+     * and {@code required_tier} are read when a beacon registers its zone, so a
+     * zone already projecting keeps the values it was created with until its
+     * beacon next refreshes it (a few seconds). Nothing needs doing about that
+     * -- it resolves on its own -- but it means a reload is not instantaneous
+     * for those two.
+     *
+     * <p>Malformed values in the file are handled exactly as at startup: warned
+     * about and replaced with the default, never fatal. A reload therefore
+     * cannot leave the server without a working config.
+     *
+     * @return the newly loaded config
+     */
+    public static synchronized NoFlyConfig reload() {
+        NoFlyConfig loaded = load();
+        instance = loaded;
+        return loaded;
     }
 
     private static Path configPath() {

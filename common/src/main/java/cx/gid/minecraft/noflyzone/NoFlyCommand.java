@@ -64,6 +64,7 @@ public final class NoFlyCommand {
                 .then(radiusAware("off", false))
                 .then(radiusAware("status", null))
                 .then(modeSubcommand())
+                .then(reloadSubcommand())
         );
     }
 
@@ -86,6 +87,33 @@ public final class NoFlyCommand {
                 .executes(ctx -> setMode(ctx.getSource(), mode)));
         }
         return node;
+    }
+
+    /**
+     * {@code /noflyzone reload} -- re-reads the config file from disk.
+     *
+     * <p>Settings are otherwise read at startup only, which makes tuning
+     * anything -- particle counts especially -- a restart per attempt. This
+     * makes the file the live source of truth on demand.
+     *
+     * <p>Reports the mode afterwards, because that is the setting most likely
+     * to have been changed by hand and the one with the most visible
+     * consequences; a silent success would leave the operator wondering
+     * whether the file was actually picked up.
+     */
+    private static LiteralArgumentBuilder<CommandSourceStack> reloadSubcommand() {
+        return Commands.literal("reload")
+            .executes(ctx -> reload(ctx.getSource()));
+    }
+
+    private static int reload(CommandSourceStack source) {
+        NoFlyConfig reloaded = NoFlyConfig.reload();
+
+        source.sendSuccess(() -> msg(source, "noflyzone.command.reloaded",
+            reloaded.mode.configName()), true);
+
+        NoFlyDebug.log("config reloaded by {}", source.getTextName());
+        return 1;
     }
 
     /**

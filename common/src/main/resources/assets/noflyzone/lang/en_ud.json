@@ -14,6 +14,7 @@
   "noflyzone.command.mode_set": "(%2$s) %1$s oʇ ʇǝs ʇuǝɯǝɔɹoɟuǝ ʎꞁɟ-oN",
   "noflyzone.command.mode_unchanged": "%s oʇ ʇǝs ʎpɐǝɹꞁɐ sᴉ ʇuǝɯǝɔɹoɟuǝ ʎꞁɟ-oN",
   "noflyzone.command.mode_not_saved": "ʇɹɐʇsǝɹ uo ʇɹǝʌǝɹ ꞁꞁᴉʍ sᴉɥʇ os 'uǝʇʇᴉɹʍ ǝq ʇou pꞁnoɔ ǝꞁᴉɟ ᵷᴉɟuoɔ ǝɥʇ :ᵷuᴉuɹɐM",
+  "noflyzone.command.reloaded": "%s oʇ ʇǝs sᴉ ʇuǝɯǝɔɹoɟuǝ ʎꞁɟ-ou ؛pǝpɐoꞁǝɹ ᵷᴉɟuoƆ",
   "noflyzone.command.enabled": "%3$s '%2$s '%1$s ʇɐ uoɔɐǝq ǝɥʇ uo pǝꞁqɐuǝ ǝuoz ʎꞁɟ-oN",
   "noflyzone.command.disabled": "%3$s '%2$s '%1$s ʇɐ uoɔɐǝq ǝɥʇ uo pǝꞁqɐsᴉp ǝuoz ʎꞁɟ-oN",
   "noflyzone.command.status_on": "ǝuoz ʎꞁɟ-ou ɐ ᵷuᴉʇɔǝɾoɹd sᴉ %3$s '%2$s '%1$s ʇɐ uoɔɐǝq ǝɥ⟘",
